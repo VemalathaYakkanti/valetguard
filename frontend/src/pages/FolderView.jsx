@@ -5,7 +5,7 @@ import {
   Folder, FileText, FileSpreadsheet, FileIcon, ChevronRight, Plus,
   Trash2, Edit3, Download, Grid, List, Search, Save,
   X, FilePlus, HardDrive, Clock, Loader2, UploadCloud, Image as ImageIcon,
-  FolderPlus
+  FolderPlus, Link as LinkIcon, ExternalLink
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store/authStore'
@@ -40,6 +40,9 @@ export default function FolderView() {
   const [showNewModal, setShowNewModal] = useState(false)
   const [newFileType, setNewFileType] = useState('text')
   const [newFileName, setNewFileName] = useState('')
+  const [newLinkUrl, setNewLinkUrl] = useState('')
+  const [newLinkDescription, setNewLinkDescription] = useState('')
+  const [activeLinkViewerFile, setActiveLinkViewerFile] = useState(null)
 
   // Load files from backend SQL database
   const fetchFolderFiles = useCallback(async () => {
@@ -68,6 +71,8 @@ export default function FolderView() {
     switch (type?.toLowerCase()) {
       case 'folder':
         return { icon: Folder, color: 'text-amber-500 fill-amber-100', bg: 'bg-amber-50 border-amber-200', label: 'File Folder' }
+      case 'link':
+        return { icon: LinkIcon, color: 'text-indigo-600', bg: 'bg-indigo-50 border-indigo-100', label: 'External Link' }
       case 'image':
         return { icon: ImageIcon, color: 'text-purple-600', bg: 'bg-purple-50 border-purple-100', label: 'Image Asset' }
       case 'text':
@@ -89,6 +94,8 @@ export default function FolderView() {
       // Navigate deeper into child nested folder using composite slug representation
       const cleanSubName = file.name.toLowerCase().replace(/[^a-z0-9]/g, '-')
       navigate(`/folder/${folderId}---${cleanSubName}`)
+    } else if (file.type?.toLowerCase() === 'link') {
+      setActiveLinkViewerFile(file)
     } else if (file.type?.toLowerCase() === 'image') {
       // Open Lightbox Image viewer
       setActiveImageViewerFile(file)
@@ -139,6 +146,9 @@ export default function FolderView() {
     if (newFileType === 'folder') {
       initialSize = 'Directory'
       initialContent = 'Nested dynamic collection entity container'
+    } else if (newFileType === 'link') {
+      initialSize = 'Link'
+      initialContent = JSON.stringify({ url: newLinkUrl, description: newLinkDescription })
     } else {
       // Append proper extension if missing
       const extMap = { text: '.txt', word: '.docx', excel: '.xlsx', pdf: '.pdf' }
@@ -504,6 +514,7 @@ export default function FolderView() {
 
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-4 py-1.5 mt-1">Virtual Entities</p>
                     {[
+                      { type: 'link', label: 'External Link', icon: LinkIcon, color: 'text-indigo-600' },
                       { type: 'text', label: 'Text Document (.txt)', icon: FileText, color: 'text-sky-500' },
                       { type: 'word', label: 'Microsoft Word (.docx)', icon: FileIcon, color: 'text-blue-600' },
                       { type: 'excel', label: 'Microsoft Excel (.xlsx)', icon: FileSpreadsheet, color: 'text-emerald-600' },
@@ -513,7 +524,13 @@ export default function FolderView() {
                         key={opt.type}
                         onClick={() => {
                           setNewFileType(opt.type)
-                          setNewFileName(`New_${opt.type}_document`)
+                          if (opt.type === 'link') {
+                            setNewFileName('New_Link')
+                            setNewLinkUrl('')
+                            setNewLinkDescription('')
+                          } else {
+                            setNewFileName(`New_${opt.type}_document`)
+                          }
                           setShowNewModal(true)
                           setShowCreatorMenu(false)
                         }}
@@ -885,6 +902,7 @@ export default function FolderView() {
                   <div className="grid grid-cols-2 gap-2">
                     {[
                       { type: 'folder', label: 'Sub-Folder' },
+                      { type: 'link', label: 'Link' },
                       { type: 'text', label: 'Text (.txt)' },
                       { type: 'word', label: 'Word (.docx)' },
                       { type: 'excel', label: 'Excel (.xlsx)' },
@@ -897,6 +915,8 @@ export default function FolderView() {
                           setNewFileType(t.type)
                           if (t.type === 'folder') {
                             setNewFileName('New_folder')
+                          } else if (t.type === 'link') {
+                            setNewFileName('New_Link')
                           } else {
                             const extMap = { text: '.txt', word: '.docx', excel: '.xlsx', pdf: '.pdf' }
                             setNewFileName(`New_${t.type}_document${extMap[t.type]}`)
@@ -923,12 +943,38 @@ export default function FolderView() {
                     type="text"
                     value={newFileName}
                     onChange={e => setNewFileName(e.target.value)}
-                    placeholder={newFileType === 'folder' ? 'Folder_name' : 'Document_name.txt'}
+                    placeholder={newFileType === 'folder' ? 'Folder_name' : (newFileType === 'link' ? 'Link Name' : 'Document_name.txt')}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                     required
                     autoFocus
                   />
                 </div>
+
+                {newFileType === 'link' && (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Link URL</label>
+                      <input
+                        type="url"
+                        value={newLinkUrl}
+                        onChange={e => setNewLinkUrl(e.target.value)}
+                        placeholder="https://docs.google.com/..."
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Description (Optional)</label>
+                      <input
+                        type="text"
+                        value={newLinkDescription}
+                        onChange={e => setNewLinkDescription(e.target.value)}
+                        placeholder="E.g., Q3 Project Tracker"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                      />
+                    </div>
+                  </>
+                )}
 
                 <button
                   type="submit"
@@ -1098,6 +1144,72 @@ export default function FolderView() {
               <div className="bg-slate-50 px-6 py-3 border-t border-slate-100 text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 ID Checksum #{activeDocumentViewerFile.id} · Synchronized SQL Node
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── LINK VIEWER MODAL ─── */}
+      <AnimatePresence>
+        {activeLinkViewerFile && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setActiveLinkViewerFile(null)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 p-8 space-y-6"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                    <LinkIcon size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900">
+                      {activeLinkViewerFile.name}
+                    </h3>
+                    <p className="text-xs text-slate-500 font-medium">External Link</p>
+                  </div>
+                </div>
+                <button onClick={() => setActiveLinkViewerFile(null)} className="text-slate-400 hover:text-slate-600 p-1">
+                  <X size={18} />
+                </button>
+              </div>
+
+              {(() => {
+                let linkData = { url: '', description: '' };
+                try {
+                  linkData = JSON.parse(activeLinkViewerFile.content || '{}');
+                } catch (e) {
+                  linkData.url = activeLinkViewerFile.content;
+                }
+                return (
+                  <div className="space-y-6">
+                    {linkData.description && (
+                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Description</p>
+                        <p className="text-sm font-medium text-slate-700">{linkData.description}</p>
+                      </div>
+                    )}
+                    
+                    <a
+                      href={linkData.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setActiveLinkViewerFile(null)}
+                      className="w-full flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 rounded-xl transition-all text-xs uppercase tracking-widest shadow-xl shadow-indigo-200"
+                    >
+                      <span>Open Link</span>
+                      <ExternalLink size={16} />
+                    </a>
+                  </div>
+                );
+              })()}
             </motion.div>
           </div>
         )}

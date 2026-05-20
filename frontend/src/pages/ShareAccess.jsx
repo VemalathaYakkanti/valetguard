@@ -12,7 +12,7 @@ import { cn } from '../lib/utils'
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 /* ─── Create Share Modal ─── */
-function CreateShareModal({ onClose, token, credentials }) {
+function CreateShareModal({ onClose, token, credentials, folders, files }) {
   const [form, setForm] = useState({
     recipientName: '',
     employerName: '',
@@ -22,6 +22,8 @@ function CreateShareModal({ onClose, token, credentials }) {
     permissions: { canViewPassword: true, canCopyPassword: true, canViewNotes: false },
   })
   const [selectedCreds, setSelectedCreds] = useState([])
+  const [selectedFolders, setSelectedFolders] = useState([])
+  const [selectedFiles, setSelectedFiles] = useState([])
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState('details') // details | credentials | confirm | success
   const [successData, setSuccessData] = useState(null)
@@ -34,8 +36,8 @@ function CreateShareModal({ onClose, token, credentials }) {
   }
 
   const handleSend = async () => {
-    if (!form.recipientName || !form.recipientEmail || selectedCreds.length === 0) {
-      toast.error('Fill in all fields and select at least one credential')
+    if (!form.recipientName || !form.recipientEmail || (!selectedCreds.length && !selectedFolders.length && !selectedFiles.length)) {
+      toast.error('Fill in all fields and select at least one item to share')
       return
     }
     setLoading(true)
@@ -46,6 +48,8 @@ function CreateShareModal({ onClose, token, credentials }) {
         recipientEmail: form.recipientEmail,
         permissions: form.permissions,
         credentialIds: selectedCreds,
+        folderSlugs: selectedFolders,
+        fileIds: selectedFiles,
       }
 
       if (form.durationMode === 'hours') {
@@ -199,27 +203,75 @@ function CreateShareModal({ onClose, token, credentials }) {
               </motion.div>
             )}
 
-            {/* Step 2: Select Credentials */}
+            {/* Step 2: Select Items */}
             {step === 'credentials' && (
               <motion.div key="credentials" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
-                <p className="text-sm text-slate-500 font-medium">Select the credentials to share with <strong className="text-slate-900">{form.recipientName}</strong>:</p>
-                <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                  {credentials.map(cred => (
-                    <button key={cred.id} type="button" onClick={() => toggleCred(cred.id)}
-                      className={cn('w-full flex items-center space-x-4 p-4 rounded-2xl border transition-all text-left', selectedCreds.includes(cred.id) ? 'bg-blue-50 border-blue-300 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300')}>
-                      <div className={cn('w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all flex-shrink-0', selectedCreds.includes(cred.id) ? 'bg-blue-600 border-blue-600' : 'border-slate-300')}>
-                        {selectedCreds.includes(cred.id) && <CheckCircle2 size={12} className="text-white" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-slate-900 truncate">{cred.title}</p>
-                        <p className="text-xs text-slate-500 font-medium truncate">{cred.username}</p>
-                      </div>
-                      <Shield size={14} className="text-slate-300 flex-shrink-0" />
-                    </button>
-                  ))}
+                <p className="text-sm text-slate-500 font-medium">Select the items to share with <strong className="text-slate-900">{form.recipientName}</strong>:</p>
+                <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
+                  
+                  {/* Credentials Section */}
+                  {credentials.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-black text-slate-400 uppercase tracking-widest sticky top-0 bg-white z-10 py-1">Vault Credentials</p>
+                      {credentials.map(cred => (
+                        <button key={cred.id} type="button" onClick={() => toggleCred(cred.id)}
+                          className={cn('w-full flex items-center space-x-4 p-4 rounded-2xl border transition-all text-left', selectedCreds.includes(cred.id) ? 'bg-blue-50 border-blue-300 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300')}>
+                          <div className={cn('w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all flex-shrink-0', selectedCreds.includes(cred.id) ? 'bg-blue-600 border-blue-600' : 'border-slate-300')}>
+                            {selectedCreds.includes(cred.id) && <CheckCircle2 size={12} className="text-white" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-slate-900 truncate">{cred.title}</p>
+                            <p className="text-xs text-slate-500 font-medium truncate">{cred.username}</p>
+                          </div>
+                          <Shield size={14} className="text-slate-300 flex-shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Folders Section */}
+                  {folders.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-black text-slate-400 uppercase tracking-widest sticky top-0 bg-white z-10 py-1">Entire Folders</p>
+                      {folders.map(folder => (
+                        <button key={folder.slug} type="button" onClick={() => setSelectedFolders(prev => prev.includes(folder.slug) ? prev.filter(s => s !== folder.slug) : [...prev, folder.slug])}
+                          className={cn('w-full flex items-center space-x-4 p-4 rounded-2xl border transition-all text-left', selectedFolders.includes(folder.slug) ? 'bg-blue-50 border-blue-300 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300')}>
+                          <div className={cn('w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all flex-shrink-0', selectedFolders.includes(folder.slug) ? 'bg-blue-600 border-blue-600' : 'border-slate-300')}>
+                            {selectedFolders.includes(folder.slug) && <CheckCircle2 size={12} className="text-white" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-slate-900 truncate">{folder.name}</p>
+                          </div>
+                          <Shield size={14} className="text-slate-300 flex-shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Specific Documents Section */}
+                  {files.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-black text-slate-400 uppercase tracking-widest sticky top-0 bg-white z-10 py-1">Specific Documents</p>
+                      {files.map(file => (
+                        <button key={file.id} type="button" onClick={() => setSelectedFiles(prev => prev.includes(file.id) ? prev.filter(f => f !== file.id) : [...prev, file.id])}
+                          className={cn('w-full flex items-center space-x-4 p-4 rounded-2xl border transition-all text-left', selectedFiles.includes(file.id) ? 'bg-blue-50 border-blue-300 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300')}>
+                          <div className={cn('w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all flex-shrink-0', selectedFiles.includes(file.id) ? 'bg-blue-600 border-blue-600' : 'border-slate-300')}>
+                            {selectedFiles.includes(file.id) && <CheckCircle2 size={12} className="text-white" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-slate-900 truncate">{file.name}</p>
+                            <p className="text-xs text-slate-500 font-medium truncate">in {file.folder_slug}</p>
+                          </div>
+                          <Shield size={14} className="text-slate-300 flex-shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                {selectedCreds.length > 0 && (
-                  <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">{selectedCreds.length} credential{selectedCreds.length > 1 ? 's' : ''} selected</p>
+                {(selectedCreds.length + selectedFolders.length + selectedFiles.length) > 0 && (
+                  <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">
+                    {selectedCreds.length + selectedFolders.length + selectedFiles.length} item(s) selected
+                  </p>
                 )}
               </motion.div>
             )}
@@ -234,7 +286,7 @@ function CreateShareModal({ onClose, token, credentials }) {
                     <div><span className="text-slate-400 font-bold">Company:</span> <span className="font-bold text-slate-900">{form.employerName || '—'}</span></div>
                     <div className="col-span-2"><span className="text-slate-400 font-bold">Email:</span> <span className="font-bold text-slate-900">{form.recipientEmail}</span></div>
                     <div><span className="text-slate-400 font-bold">Duration:</span> <span className="font-bold text-slate-900">{form.durationValue} {form.durationMode}</span></div>
-                    <div><span className="text-slate-400 font-bold">Credentials:</span> <span className="font-bold text-slate-900">{selectedCreds.length} shared</span></div>
+                    <div><span className="text-slate-400 font-bold">Items:</span> <span className="font-bold text-slate-900">{selectedCreds.length + selectedFolders.length + selectedFiles.length} shared</span></div>
                   </div>
                 </div>
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start space-x-3">
@@ -338,7 +390,7 @@ function CreateShareModal({ onClose, token, credentials }) {
           )}
           {step === 'credentials' && (
             <button type="button"
-              onClick={() => { if (!selectedCreds.length) { toast.error('Select at least one credential'); return } setStep('confirm') }}
+              onClick={() => { if (!(selectedCreds.length + selectedFolders.length + selectedFiles.length)) { toast.error('Select at least one item'); return } setStep('confirm') }}
               className="bg-slate-900 hover:bg-slate-800 text-white font-black py-3.5 px-8 rounded-2xl text-xs uppercase tracking-widest transition-all">
               Review & Generate →
             </button>
@@ -366,20 +418,27 @@ export default function ShareAccess() {
   const { token } = useAuthStore()
   const [shares, setShares] = useState([])
   const [credentials, setCredentials] = useState([])
+  const [folders, setFolders] = useState([])
+  const [files, setFiles] = useState([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [sharesRes, credsRes] = await Promise.all([
+      const [sharesRes, credsRes, foldersRes] = await Promise.all([
         fetch(`${apiUrl}/shares`, { headers: { 'Authorization': `Bearer ${token}` } }),
         fetch(`${apiUrl}/credentials`, { headers: { 'Authorization': `Bearer ${token}` } }),
+        fetch(`${apiUrl}/folders/all`, { headers: { 'Authorization': `Bearer ${token}` } }),
       ])
       const sharesData = await sharesRes.json()
       const credsData = await credsRes.json()
+      const foldersData = await foldersRes.json()
+      
       setShares(Array.isArray(sharesData) ? sharesData : [])
       setCredentials(Array.isArray(credsData) ? credsData : [])
+      setFolders(Array.isArray(foldersData?.folders) ? foldersData.folders : [])
+      setFiles(Array.isArray(foldersData?.files) ? foldersData.files : [])
     } catch (err) {
       toast.error('Failed to load sharing data')
     } finally {
@@ -515,7 +574,9 @@ export default function ShareAccess() {
                       <p className="text-sm font-bold text-slate-700">
                         {new Date(share.expires_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                       </p>
-                      <p className="text-[10px] text-slate-400 font-medium">{share.credential_count} credential(s)</p>
+                      <p className="text-[10px] text-slate-400 font-medium">
+                        {share.credential_count || 0} creds, {share.folder_count || 0} folders, {share.file_count || 0} files
+                      </p>
                     </div>
 
                     {/* Quick Extend Buttons */}
@@ -568,6 +629,8 @@ export default function ShareAccess() {
             onClose={(refresh) => { setShowCreate(false); if (refresh) fetchData() }}
             token={token}
             credentials={credentials}
+            folders={folders}
+            files={files}
           />
         )}
       </AnimatePresence>

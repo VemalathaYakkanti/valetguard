@@ -88,6 +88,19 @@ const tables = [
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS shared_folders (
+      id BIGINT PRIMARY KEY AUTO_INCREMENT,
+      guest_user_id BIGINT NOT NULL,
+      folder_slug VARCHAR(100) NOT NULL,
+      FOREIGN KEY (guest_user_id) REFERENCES guest_users(id) ON DELETE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS shared_folder_files (
+      id BIGINT PRIMARY KEY AUTO_INCREMENT,
+      guest_user_id BIGINT NOT NULL,
+      folder_file_id BIGINT NOT NULL,
+      FOREIGN KEY (guest_user_id) REFERENCES guest_users(id) ON DELETE CASCADE,
+      FOREIGN KEY (folder_file_id) REFERENCES folder_files(id) ON DELETE CASCADE
   )`
 ];
 

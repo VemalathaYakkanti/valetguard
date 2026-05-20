@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Shield, LogOut, Copy, Eye, EyeOff, Key, Globe, Loader2,
-  Clock, Lock, Star, ShieldCheck
+  Clock, Lock, Star, ShieldCheck, Folder, FileText, Download, Link as LinkIcon, ExternalLink
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { decryptData } from '../lib/encryption'
@@ -18,10 +18,13 @@ const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
  */
 export default function GuestVault() {
   const [credentials, setCredentials] = useState([])
+  const [folders, setFolders] = useState([])
+  const [files, setFiles] = useState([])
   const [guestInfo, setGuestInfo] = useState(null)
   const [sharedBy, setSharedBy] = useState('')
   const [loading, setLoading] = useState(true)
   const [decryptedPasswords, setDecryptedPasswords] = useState({})
+  const [activeTab, setActiveTab] = useState('credentials')
   const [masterPassword, setMasterPassword] = useState('')
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(true)
   const [promptPwd, setPromptPwd] = useState('')
@@ -54,6 +57,8 @@ export default function GuestVault() {
         throw new Error(data.message)
       }
       setCredentials(data.credentials || [])
+      setFolders(data.folders || [])
+      setFiles(data.files || [])
       setSharedBy(data.guestInfo?.sharedBy || '')
     } catch (err) {
       toast.error(err.message || 'Failed to load shared credentials')
@@ -97,6 +102,56 @@ export default function GuestVault() {
     sessionStorage.removeItem('vg_guest_token')
     sessionStorage.removeItem('vg_guest_info')
     navigate('/guest-login')
+  }
+
+  const handleDownloadFile = (file) => {
+    const fileContent = file.content || ''
+    
+    if (fileContent.startsWith('data:')) {
+      try {
+        const arr = fileContent.split(',')
+        const mime = arr[0].match(/:(.*?);/)[1]
+        const bstr = atob(arr[1])
+        let n = bstr.length
+        const u8arr = new Uint8Array(n)
+        while (n--) { u8arr[n] = bstr.charCodeAt(n) }
+        const fileBlob = new Blob([u8arr], { type: mime })
+        const element = document.createElement('a')
+        element.href = URL.createObjectURL(fileBlob)
+        element.download = file.name
+        document.body.appendChild(element)
+        element.click()
+        document.body.removeChild(element)
+        toast.success(`Downloaded ${file.name}`)
+        return
+      } catch (err) {}
+    }
+    
+    // Fallback for text/links
+    if (file.type?.toLowerCase() === 'link') {
+       let url = '';
+       try { url = JSON.parse(fileContent).url; } catch(e) { url = fileContent; }
+       window.open(url, '_blank');
+       return;
+    }
+
+    const fileBlob = new Blob([fileContent || 'Empty File Container'], { type: 'text/plain;charset=utf-8' })
+    const element = document.createElement('a')
+    element.href = URL.createObjectURL(fileBlob)
+    element.download = file.name || 'document.txt'
+    document.body.appendChild(element)
+    element.click()
+    document.body.removeChild(element)
+    toast.success(`Downloaded ${file.name}`)
+  }
+
+  const getFileMeta = (type) => {
+    switch (type?.toLowerCase()) {
+      case 'folder': return { icon: Folder, color: 'text-amber-500', bg: 'bg-amber-50 border-amber-200', label: 'File Folder' }
+      case 'link': return { icon: LinkIcon, color: 'text-indigo-600', bg: 'bg-indigo-50 border-indigo-100', label: 'External Link' }
+      case 'image': return { icon: Globe, color: 'text-purple-600', bg: 'bg-purple-50 border-purple-100', label: 'Image Asset' }
+      default: return { icon: FileText, color: 'text-sky-500', bg: 'bg-sky-50 border-sky-100', label: 'Document' }
+    }
   }
 
   const expiresAt = guestInfo?.expiresAt
@@ -194,15 +249,24 @@ export default function GuestVault() {
         </div>
       )}
 
-      {/* Credentials Grid */}
+      {/* Credentials & Files Grid */}
       <main className="max-w-6xl mx-auto px-6 py-10">
-        <div className="mb-8 space-y-1">
+        <div className="mb-8 space-y-4">
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-            Shared Credentials
+            Shared Access
           </h1>
-          <p className="text-slate-500 font-medium text-sm">
-            {credentials.length} credential{credentials.length !== 1 ? 's' : ''} shared with you · Read-only access
-          </p>
+          
+          <div className="flex items-center space-x-2 border-b border-slate-200 pb-1">
+            <button onClick={() => setActiveTab('credentials')} className={cn("px-4 py-2 font-bold text-sm transition-all border-b-2", activeTab === 'credentials' ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700")}>
+              Credentials ({credentials.length})
+            </button>
+            <button onClick={() => setActiveTab('folders')} className={cn("px-4 py-2 font-bold text-sm transition-all border-b-2", activeTab === 'folders' ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700")}>
+              Folders ({folders.length})
+            </button>
+            <button onClick={() => setActiveTab('files')} className={cn("px-4 py-2 font-bold text-sm transition-all border-b-2", activeTab === 'files' ? "border-blue-600 text-blue-600" : "border-transparent text-slate-500 hover:text-slate-700")}>
+              Documents ({files.length})
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -210,82 +274,120 @@ export default function GuestVault() {
             <Loader2 className="animate-spin text-blue-600" size={48} />
             <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Decrypting Vault...</p>
           </div>
-        ) : credentials.length === 0 ? (
-          <div className="bg-white border border-slate-200 rounded-[2rem] p-20 text-center space-y-4 shadow-sm">
-            <div className="inline-flex p-6 bg-slate-50 rounded-3xl text-slate-200"><Key size={48} /></div>
-            <h3 className="text-xl font-bold text-slate-900">No credentials shared yet</h3>
-          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {credentials.map(item => (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white border border-slate-200 p-6 rounded-[2rem] shadow-sm hover:shadow-xl hover:shadow-slate-200/40 transition-all group"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div className="p-3 bg-slate-50 border border-slate-100 rounded-2xl text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                    <Key size={22} />
-                  </div>
-                  {item.is_favorite && <Star size={16} className="text-amber-400 fill-amber-400" />}
+          <>
+            {activeTab === 'credentials' && (
+              credentials.length === 0 ? (
+                <div className="bg-white border border-slate-200 rounded-[2rem] p-20 text-center space-y-4 shadow-sm">
+                  <div className="inline-flex p-6 bg-slate-50 rounded-3xl text-slate-200"><Key size={48} /></div>
+                  <h3 className="text-xl font-bold text-slate-900">No credentials shared</h3>
                 </div>
-
-                <h3 className="text-xl font-black text-slate-900 mb-1">{item.title}</h3>
-                <p className="text-sm text-slate-500 font-medium mb-1">{item.username}</p>
-                {item.url && (
-                  <a href={item.url} target="_blank" rel="noreferrer" className="flex items-center space-x-1 text-xs text-blue-500 font-bold hover:underline mb-4">
-                    <Globe size={11} />
-                    <span className="truncate">{item.url}</span>
-                  </a>
-                )}
-
-                {/* Password row */}
-                <div className="pt-4 border-t border-slate-100 mt-4">
-                  {item.encrypted_password ? (
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 mr-2">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Password</p>
-                        <p className="font-mono text-sm text-slate-700 truncate">
-                          {decryptedPasswords[item.id] || '••••••••••••'}
-                        </p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {credentials.map(item => (
+                    <motion.div key={item.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                      className="bg-white border border-slate-200 p-6 rounded-[2rem] shadow-sm hover:shadow-xl hover:shadow-slate-200/40 transition-all group">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="p-3 bg-slate-50 border border-slate-100 rounded-2xl text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                          <Key size={22} />
+                        </div>
+                        {item.is_favorite && <Star size={16} className="text-amber-400 fill-amber-400" />}
                       </div>
-                      <div className="flex space-x-1">
-                        {item.can_view_password && (
-                          <button onClick={() => handleRevealPassword(item)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition-colors">
-                            {decryptedPasswords[item.id] ? <EyeOff size={15} /> : <Eye size={15} />}
-                          </button>
-                        )}
-                        {item.can_copy_password && (
-                          <button onClick={() => handleCopyPassword(item)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-600 transition-colors">
-                            <Copy size={15} />
-                          </button>
+
+                      <h3 className="text-xl font-black text-slate-900 mb-1">{item.title}</h3>
+                      <p className="text-sm text-slate-500 font-medium mb-1">{item.username}</p>
+                      {item.url && (
+                        <a href={item.url} target="_blank" rel="noreferrer" className="flex items-center space-x-1 text-xs text-blue-500 font-bold hover:underline mb-4">
+                          <Globe size={11} />
+                          <span className="truncate">{item.url}</span>
+                        </a>
+                      )}
+
+                      <div className="pt-4 border-t border-slate-100 mt-4">
+                        {item.encrypted_password ? (
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 mr-2">
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Password</p>
+                              <p className="font-mono text-sm text-slate-700 truncate">{decryptedPasswords[item.id] || '••••••••••••'}</p>
+                            </div>
+                            <div className="flex space-x-1">
+                              {item.can_view_password && (
+                                <button onClick={() => handleRevealPassword(item)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition-colors">
+                                  {decryptedPasswords[item.id] ? <EyeOff size={15} /> : <Eye size={15} />}
+                                </button>
+                              )}
+                              {item.can_copy_password && (
+                                <button onClick={() => handleCopyPassword(item)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-600 transition-colors">
+                                  <Copy size={15} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-2 text-slate-300">
+                            <Lock size={14} />
+                            <span className="text-xs font-bold uppercase tracking-widest">Password hidden</span>
+                          </div>
                         )}
                       </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center space-x-2 text-slate-300">
-                      <Lock size={14} />
-                      <span className="text-xs font-bold uppercase tracking-widest">Password hidden</span>
-                    </div>
-                  )}
+                    </motion.div>
+                  ))}
                 </div>
+              )
+            )}
 
-                {/* Permissions badge */}
-                <div className="mt-3 flex flex-wrap gap-1">
-                  {item.can_view_password && (
-                    <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-widest">View</span>
-                  )}
-                  {item.can_copy_password && (
-                    <span className="text-[9px] font-black text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full uppercase tracking-widest">Copy</span>
-                  )}
-                  {item.can_view_notes && (
-                    <span className="text-[9px] font-black text-violet-700 bg-violet-50 border border-violet-200 px-2 py-0.5 rounded-full uppercase tracking-widest">Notes</span>
-                  )}
+            {activeTab === 'folders' && (
+              folders.length === 0 ? (
+                <div className="bg-white border border-slate-200 rounded-[2rem] p-20 text-center space-y-4 shadow-sm">
+                  <div className="inline-flex p-6 bg-slate-50 rounded-3xl text-slate-200"><Folder size={48} /></div>
+                  <h3 className="text-xl font-bold text-slate-900">No folders shared</h3>
                 </div>
-              </motion.div>
-            ))}
-          </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {folders.map(folder => (
+                    <div key={folder.id} className="bg-amber-50/30 border border-amber-200 rounded-2xl p-5 flex flex-col justify-between shadow-sm h-32 group">
+                      <div className="p-3 rounded-xl bg-amber-100 w-12 h-12 flex items-center justify-center">
+                        <Folder size={20} className="text-amber-600 fill-amber-600" />
+                      </div>
+                      <p className="text-sm font-black text-amber-900 mt-3 truncate">{folder.name}</p>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+
+            {activeTab === 'files' && (
+              files.length === 0 ? (
+                <div className="bg-white border border-slate-200 rounded-[2rem] p-20 text-center space-y-4 shadow-sm">
+                  <div className="inline-flex p-6 bg-slate-50 rounded-3xl text-slate-200"><FileText size={48} /></div>
+                  <h3 className="text-xl font-bold text-slate-900">No documents shared</h3>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {files.map(file => {
+                    const meta = getFileMeta(file.type)
+                    const MetaIcon = meta.icon
+                    return (
+                      <div key={file.id} onClick={() => handleDownloadFile(file)} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all cursor-pointer flex flex-col justify-between group h-40">
+                        <div className="flex justify-between items-start">
+                          <div className={cn('p-3 rounded-xl border', meta.bg)}>
+                            <MetaIcon size={20} className={meta.color} />
+                          </div>
+                          <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 group-hover:text-blue-600 transition-colors">
+                            {file.type?.toLowerCase() === 'link' ? <ExternalLink size={16} /> : <Download size={16} />}
+                          </button>
+                        </div>
+                        <div className="mt-4">
+                          <p className="text-xs font-black text-slate-900 truncate group-hover:text-blue-600">{file.name}</p>
+                          <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{meta.label} · {file.size}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            )}
+          </>
         )}
 
         {/* Footer */}

@@ -22,6 +22,23 @@ const STARTER_SEEDS = {
 };
 
 /**
+ * GET /api/folders/all
+ * Retrieve all folders and their files for the authenticated user.
+ * Used for populating Share Modal.
+ */
+router.get('/all', auth, async (req, res) => {
+  const userId = req.user.id;
+  try {
+    const [folders] = await pool.query('SELECT id, name, slug, icon FROM folders WHERE user_id = ?', [userId]);
+    const [files] = await pool.query('SELECT id, folder_slug, name, type, size, created_at, updated_at FROM folder_files WHERE user_id = ? ORDER BY updated_at DESC', [userId]);
+    res.json({ folders, files });
+  } catch (error) {
+    console.error('Folders all GET error:', error.message);
+    res.status(500).json({ message: 'Failed to retrieve all folders and files', error: error.message });
+  }
+});
+
+/**
  * GET /api/folders/:slug/files
  * Retrieve all files inside a folder slug. Auto-seeds defaults if empty.
  */

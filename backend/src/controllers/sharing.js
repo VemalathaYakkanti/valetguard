@@ -35,13 +35,15 @@ export const createShare = async (req, res) => {
     employerName,
     recipientEmail,
     credentialIds,     // array of credential IDs to share
+    folderSlugs,       // array of folder slugs to share
+    fileIds,           // array of specific file IDs to share
     permissions,       // { canViewPassword, canCopyPassword, canViewNotes }
     expiresInDays,     // e.g. 7, 30, 90
     expiresInHours,    // e.g. 1, 2, 4, 8, 12, 24
   } = req.body;
 
-  if (!recipientName || !recipientEmail || !credentialIds?.length) {
-    return res.status(400).json({ message: 'Recipient name, email, and at least one credential are required.' });
+  if (!recipientName || !recipientEmail || (!credentialIds?.length && !folderSlugs?.length && !fileIds?.length)) {
+    return res.status(400).json({ message: 'Recipient name, email, and at least one item to share are required.' });
   }
 
   try {
@@ -82,6 +84,8 @@ export const createShare = async (req, res) => {
       );
       // Remove old shared credentials for this guest
       await pool.query('DELETE FROM shared_credentials WHERE guest_user_id = ?', [guestUserId]);
+      await pool.query('DELETE FROM shared_folders WHERE guest_user_id = ?', [guestUserId]);
+      await pool.query('DELETE FROM shared_folder_files WHERE guest_user_id = ?', [guestUserId]);
     } else {
       // Create new guest user
       const [guestResult] = await pool.query(
@@ -98,11 +102,25 @@ export const createShare = async (req, res) => {
     const canCopyPwd = permissions?.canCopyPassword ? 1 : 0;
     const canViewNotes = permissions?.canViewNotes ? 1 : 0;
 
-    for (const credId of credentialIds) {
+    for (const credId of (credentialIds || [])) {
       await pool.query(
         `INSERT INTO shared_credentials (guest_user_id, credential_id, can_view_password, can_copy_password, can_view_notes)
          VALUES (?, ?, ?, ?, ?)`,
         [guestUserId, credId, canViewPwd, canCopyPwd, canViewNotes]
+      );
+    }
+    
+    for (const slug of (folderSlugs || [])) {
+      await pool.query(
+        `INSERT INTO shared_folders (guest_user_id, folder_slug) VALUES (?, ?)`,
+        [guestUserId, slug]
+      );
+    }
+
+    for (const fileId of (fileIds || [])) {
+      await pool.query(
+        `INSERT INTO shared_folder_files (guest_user_id, folder_file_id) VALUES (?, ?)`,
+        [guestUserId, fileId]
       );
     }
 
@@ -118,7 +136,8 @@ export const createShare = async (req, res) => {
     });
 
     const durationStr = expiresInHours ? `${expiresInHours} hour(s)` : `${expiresInDays || 30} day(s)`;
-    await logActivity(adminId, 'SHARE_CREATED', `Shared ${credentialIds.length} credential(s) with ${recipientEmail} for ${durationStr}`);
+    const totalItems = (credentialIds?.length || 0) + (folderSlugs?.length || 0) + (fileIds?.length || 0);
+    await logActivity(adminId, 'SHARE_CREATED', `Shared ${totalItems} item(s) with ${recipientEmail} for ${durationStr}`);
 
     res.status(201).json({
       message: emailStatus?.success 
@@ -146,11 +165,11 @@ export const getShares = async (req, res) => {
   try {
     const [guests] = await pool.query(
       `SELECT g.id, g.name, g.employer, g.email, g.is_activated, g.expires_at, g.created_at,
-              COUNT(sc.id) AS credential_count
+              (SELECT COUNT(*) FROM shared_credentials WHERE guest_user_id = g.id) AS credential_count,
+              (SELECT COUNT(*) FROM shared_folders WHERE guest_user_id = g.id) AS folder_count,
+              (SELECT COUNT(*) FROM shared_folder_files WHERE guest_user_id = g.id) AS file_count
        FROM guest_users g
-       LEFT JOIN shared_credentials sc ON sc.guest_user_id = g.id
        WHERE g.created_by_user_id = ?
-       GROUP BY g.id
        ORDER BY g.created_at DESC`,
       [adminId]
     );
@@ -285,7 +304,7 @@ export const guestGetCredentials = async (req, res) => {
     );
     if (!guests.length) return res.status(403).json({ message: 'Guest access expired.' });
 
-    const [rows] = await pool.query(
+    const [creds] = await pool.query(
       `SELECT 
          c.id, c.title, c.username, c.url, c.encrypted_password, c.iv, c.salt,
          c.encrypted_notes, c.encrypted_totp_secret, c.totp_iv, c.totp_salt,
@@ -297,8 +316,28 @@ export const guestGetCredentials = async (req, res) => {
       [guestId]
     );
 
+    // Fetch shared folders
+    const [folders] = await pool.query(
+      `SELECT f.id, f.name, f.slug, f.icon 
+       FROM shared_folders sf
+       JOIN folders f ON f.slug = sf.folder_slug
+       WHERE sf.guest_user_id = ?`,
+      [guestId]
+    );
+
+    // Fetch folder files that belong to shared folders OR are specifically shared
+    const [files] = await pool.query(
+      `SELECT DISTINCT ff.id, ff.folder_slug, ff.name, ff.type, ff.size, ff.content, ff.created_at, ff.updated_at
+       FROM folder_files ff
+       LEFT JOIN shared_folders sf ON sf.folder_slug = ff.folder_slug AND sf.guest_user_id = ?
+       LEFT JOIN shared_folder_files sff ON sff.folder_file_id = ff.id AND sff.guest_user_id = ?
+       WHERE sf.id IS NOT NULL OR sff.id IS NOT NULL
+       ORDER BY ff.updated_at DESC`,
+      [guestId, guestId]
+    );
+
     // If can_view_password is false, strip the encrypted fields
-    const sanitized = rows.map(row => {
+    const sanitized = creds.map(row => {
       if (!row.can_view_password) {
         return {
           ...row,
@@ -312,6 +351,8 @@ export const guestGetCredentials = async (req, res) => {
 
     res.json({
       credentials: sanitized,
+      folders,
+      files,
       guestInfo: {
         name: guests[0].name,
         sharedBy: guests[0].created_by_user_id,
@@ -319,6 +360,6 @@ export const guestGetCredentials = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch shared credentials', error: error.message });
+    res.status(500).json({ message: 'Failed to fetch shared items', error: error.message });
   }
 };
