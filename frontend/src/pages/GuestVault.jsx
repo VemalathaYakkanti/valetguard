@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Shield, LogOut, Copy, Eye, EyeOff, Key, Globe, Loader2,
-  Clock, Lock, Star, ShieldCheck, Folder, FileText, Download, Link as LinkIcon, ExternalLink
+  Clock, Lock, Star, ShieldCheck, Folder, FileText, Download, Link as LinkIcon, ExternalLink, X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { decryptData } from '../lib/encryption'
@@ -28,6 +28,7 @@ export default function GuestVault() {
   const [masterPassword, setMasterPassword] = useState('')
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(true)
   const [promptPwd, setPromptPwd] = useState('')
+  const [activeImageViewerFile, setActiveImageViewerFile] = useState(null)
   const navigate = useNavigate()
 
   const guestToken = sessionStorage.getItem('vg_guest_token')
@@ -367,8 +368,15 @@ export default function GuestVault() {
                   {files.map(file => {
                     const meta = getFileMeta(file.type)
                     const MetaIcon = meta.icon
+                    const isImage = file.type?.toLowerCase() === 'image'
                     return (
-                      <div key={file.id} onClick={() => handleDownloadFile(file)} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all cursor-pointer flex flex-col justify-between group h-40">
+                      <div key={file.id} onClick={() => {
+                        if (isImage) {
+                          setActiveImageViewerFile(file)
+                        } else {
+                          handleDownloadFile(file)
+                        }
+                      }} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-lg transition-all cursor-pointer flex flex-col justify-between group h-40">
                         <div className="flex justify-between items-start">
                           <div className={cn('p-3 rounded-xl border', meta.bg)}>
                             <MetaIcon size={20} className={meta.color} />
@@ -398,6 +406,51 @@ export default function GuestVault() {
           </div>
         </div>
       </main>
+
+      {/* ─── LIGHTBOX IMAGE VIEWER MODAL ─── */}
+      <AnimatePresence>
+        {activeImageViewerFile && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setActiveImageViewerFile(null)}
+              className="absolute inset-0 bg-slate-900/80 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative max-w-4xl w-full max-h-[85vh] bg-white rounded-[2rem] shadow-2xl border border-slate-200 overflow-hidden flex flex-col z-10"
+            >
+              <div className="bg-slate-900 text-white px-6 py-3 flex items-center justify-between">
+                <span className="text-xs font-bold truncate max-w-sm">{activeImageViewerFile.name}</span>
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={() => { handleDownloadFile(activeImageViewerFile); setActiveImageViewerFile(null); }}
+                    className="p-2 text-slate-400 hover:text-white transition-colors"
+                    title="Download High-Res"
+                  >
+                    <Download size={16} />
+                  </button>
+                  <button
+                    onClick={() => setActiveImageViewerFile(null)}
+                    className="p-2 text-slate-400 hover:text-white transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+              <div className="p-4 bg-slate-100 flex-1 overflow-auto flex items-center justify-center min-h-[300px]">
+                <img 
+                  src={activeImageViewerFile.content} 
+                  alt={activeImageViewerFile.name} 
+                  className="max-w-full max-h-[60vh] object-contain rounded-xl shadow-sm border border-white"
+                />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
