@@ -25,6 +25,19 @@ export const register = async (req, res) => {
 
     const userId = result.insertId;
 
+    const clientType = req.body.clientType || req.headers['x-client-type'];
+    const isMobile = clientType === 'mobile';
+
+    if (isMobile) {
+      const jwtToken = jwt.sign({ id: userId, email }, JWT_SECRET, { expiresIn: '8h' });
+      await logActivity(userId, 'REGISTER_SUCCESS_MOBILE');
+      return res.status(201).json({
+        message: 'Account created successfully.',
+        token: jwtToken,
+        user: { id: userId, email },
+      });
+    }
+
     // Return userId so frontend can redirect to 2FA setup immediately
     res.status(201).json({
       message: 'Account created. Please set up Google Authenticator to continue.',
@@ -53,6 +66,18 @@ export const login = async (req, res) => {
     }
 
     await logActivity(user.id, 'LOGIN_ATTEMPT', { email });
+
+    const clientType = req.body.clientType || req.headers['x-client-type'];
+    const isMobile = clientType === 'mobile';
+
+    if (isMobile) {
+      const jwtToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '8h' });
+      await logActivity(user.id, 'LOGIN_SUCCESS', { method: 'PASSWORD_DIRECT_MOBILE' });
+      return res.json({
+        token: jwtToken,
+        user: { id: user.id, email: user.email },
+      });
+    }
 
     // MANDATORY 2FA: If 2FA is not yet set up, force setup before granting access
     if (!user.two_factor_secret) {
