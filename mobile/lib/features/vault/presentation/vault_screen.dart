@@ -13,6 +13,10 @@ import '../../../core/utils/totp_helper.dart';
 import '../../auth/presentation/auth_provider.dart';
 import '../domain/credential_model.dart';
 import 'vault_provider.dart';
+import '../../folders/presentation/folders_screen.dart';
+import '../../workspaces/presentation/workspaces_screen.dart';
+import '../../sharing/presentation/sharing_screen.dart';
+import '../../activity/presentation/activity_screen.dart';
 
 class VaultScreen extends ConsumerStatefulWidget {
   const VaultScreen({super.key});
@@ -36,6 +40,8 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
   Widget build(BuildContext context) {
     final List<Widget> tabs = [
       _buildVaultTab(),
+      const FoldersScreen(),
+      const WorkspacesScreen(),
       _buildGeneratorTab(),
       _buildSettingsTab(),
     ];
@@ -58,6 +64,14 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
           BottomNavigationBarItem(
             icon: Icon(LucideIcons.shield),
             label: 'Vault',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(LucideIcons.folder),
+            label: 'Folders',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(LucideIcons.table),
+            label: 'Workspaces',
           ),
           BottomNavigationBarItem(
             icon: Icon(LucideIcons.key),
@@ -1148,6 +1162,24 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                   title: Text("Change App Passcode", style: GoogleFonts.inter(color: Colors.white)),
                   trailing: const Icon(LucideIcons.chevronRight, color: ColorSchemes.textMuted),
                   onTap: () => _showChangePasscodeDialog(context),
+                ),
+                const Divider(color: Color(0xFF1E293B), height: 1),
+                ListTile(
+                  leading: const Icon(LucideIcons.users, color: Colors.white),
+                  title: Text("Shared Access", style: GoogleFonts.inter(color: Colors.white)),
+                  trailing: const Icon(LucideIcons.chevronRight, color: ColorSchemes.textMuted),
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SharingScreen()));
+                  },
+                ),
+                const Divider(color: Color(0xFF1E293B), height: 1),
+                ListTile(
+                  leading: const Icon(LucideIcons.activity, color: Colors.white),
+                  title: Text("Activity Logs", style: GoogleFonts.inter(color: Colors.white)),
+                  trailing: const Icon(LucideIcons.chevronRight, color: ColorSchemes.textMuted),
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const ActivityScreen()));
+                  },
                 ),
               ],
             ),
