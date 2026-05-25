@@ -35,6 +35,8 @@ dependencies:
   lucide_icons: ^0.257.0
   fluttertoast: ^8.2.8
   animations: ^2.0.11
+  url_launcher: ^6.3.2
+  file_picker: ^11.0.2
 
 dev_dependencies:
   flutter_test:

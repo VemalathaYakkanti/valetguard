@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/color_schemes.dart';
 import '../../../core/utils/encryption_helper.dart';
 import '../../../core/utils/totp_helper.dart';
@@ -187,7 +188,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: ColorSchemes.darkSurface,
                 shape: BoxShape.circle,
               ),
@@ -237,9 +238,9 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: CircleAvatar(
+            leading: const CircleAvatar(
               backgroundColor: ColorSchemes.darkBackground,
-              child: const Icon(LucideIcons.globe, color: ColorSchemes.primaryBlue, size: 20),
+              child: Icon(LucideIcons.globe, color: ColorSchemes.primaryBlue, size: 20),
             ),
             title: Text(
               item.title,
@@ -287,10 +288,10 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      CircleAvatar(
+                      const CircleAvatar(
                         backgroundColor: ColorSchemes.darkBackground,
                         radius: 18,
-                        child: const Icon(LucideIcons.globe, color: ColorSchemes.primaryBlue, size: 16),
+                        child: Icon(LucideIcons.globe, color: ColorSchemes.primaryBlue, size: 16),
                       ),
                       if (item.encryptedTotpSecret != null)
                         const Icon(LucideIcons.clock, color: ColorSchemes.accentPurple, size: 16),
@@ -375,10 +376,10 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                   // Header details
                   Row(
                     children: [
-                      CircleAvatar(
+                      const CircleAvatar(
                         radius: 28,
                         backgroundColor: ColorSchemes.darkBackground,
-                        child: const Icon(LucideIcons.globe, color: ColorSchemes.primaryBlue, size: 28),
+                        child: Icon(LucideIcons.globe, color: ColorSchemes.primaryBlue, size: 28),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -394,11 +395,20 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                               ),
                             ),
                             if (item.url != null && item.url!.isNotEmpty)
-                              Text(
-                                item.url!,
-                                style: GoogleFonts.inter(
-                                  fontSize: 14,
-                                  color: ColorSchemes.primaryBlue,
+                              InkWell(
+                                onTap: () async {
+                                  final uri = Uri.parse(item.url!.startsWith('http') ? item.url! : 'https://${item.url}');
+                                  if (await canLaunchUrl(uri)) {
+                                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                  }
+                                },
+                                child: Text(
+                                  item.url!,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    color: ColorSchemes.primaryBlue,
+                                    decoration: TextDecoration.underline,
+                                  ),
                                 ),
                               ),
                           ],
@@ -1051,7 +1061,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
       title: Text(label, style: GoogleFonts.inter(color: Colors.white)),
       value: value,
       onChanged: onChanged,
-      activeColor: ColorSchemes.primaryBlue,
+      activeThumbColor: ColorSchemes.primaryBlue,
       contentPadding: EdgeInsets.zero,
     );
   }
@@ -1154,7 +1164,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                   onChanged: (val) {
                     ref.read(authProvider.notifier).setBiometricsEnabled(val);
                   },
-                  activeColor: ColorSchemes.accentGreen,
+                  activeThumbColor: ColorSchemes.accentGreen,
                 ),
                 const Divider(color: Color(0xFF1E293B), height: 1),
                 ListTile(

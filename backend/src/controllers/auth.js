@@ -29,7 +29,7 @@ export const register = async (req, res) => {
     const isMobile = clientType === 'mobile';
 
     if (isMobile) {
-      const jwtToken = jwt.sign({ id: userId, email }, JWT_SECRET, { expiresIn: '8h' });
+      const jwtToken = jwt.sign({ id: userId, email }, JWT_SECRET, { expiresIn: '365d' });
       await logActivity(userId, 'REGISTER_SUCCESS_MOBILE');
       return res.status(201).json({
         message: 'Account created successfully.',
@@ -71,7 +71,7 @@ export const login = async (req, res) => {
     const isMobile = clientType === 'mobile';
 
     if (isMobile) {
-      const jwtToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '8h' });
+      const jwtToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '365d' });
       await logActivity(user.id, 'LOGIN_SUCCESS', { method: 'PASSWORD_DIRECT_MOBILE' });
       return res.json({
         token: jwtToken,
@@ -127,7 +127,9 @@ export const login2FA = async (req, res) => {
       await pool.query('UPDATE users SET two_factor_enabled = TRUE WHERE id = ?', [user.id]);
     }
 
-    const jwtToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '8h' });
+    const clientType = req.body.clientType || req.headers['x-client-type'];
+    const isMobile = clientType === 'mobile';
+    const jwtToken = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: isMobile ? '365d' : '8h' });
 
     await logActivity(user.id, 'LOGIN_SUCCESS', { method: '2FA_TOTP' });
 

@@ -1,10 +1,16 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:file_picker/file_picker.dart';
 import 'folders_provider.dart';
 import '../domain/folder_model.dart';
+import 'document_viewer_screen.dart';
+import '../../../core/theme/color_schemes.dart';
 
 class FoldersScreen extends ConsumerStatefulWidget {
-  const FoldersScreen({Key? key}) : super(key: key);
+  const FoldersScreen({super.key});
 
   @override
   ConsumerState<FoldersScreen> createState() => _FoldersScreenState();
@@ -18,8 +24,11 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
     final state = ref.watch(foldersProvider);
 
     return Scaffold(
+      backgroundColor: ColorSchemes.darkBackground,
       appBar: AppBar(
-        title: Text(selectedFolder == null ? 'Folders' : selectedFolder!.name),
+        title: Text(selectedFolder == null ? 'Folders' : selectedFolder!.name, style: const TextStyle(color: Colors.white)),
+        backgroundColor: ColorSchemes.darkBackground,
+        iconTheme: const IconThemeData(color: Colors.white),
         leading: selectedFolder != null
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
@@ -39,34 +48,67 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
               : selectedFolder == null
                   ? _buildFoldersList(state.folders)
                   : _buildFilesList(state.files),
-      floatingActionButton: selectedFolder != null
+      floatingActionButton: selectedFolder != null 
           ? FloatingActionButton(
-              onPressed: () {
-                // TODO: Show dialog to create a new file
-              },
-              child: const Icon(Icons.add),
+              backgroundColor: ColorSchemes.primaryBlue,
+              onPressed: _pickAndUploadFile,
+              child: const Icon(Icons.upload_file, color: Colors.white),
             )
           : null,
     );
   }
 
+  Future<void> _pickAndUploadFile() async {
+    if (selectedFolder == null) return;
+
+    FilePickerResult? result = await FilePicker.pickFiles();
+
+    if (result != null && result.files.single.path != null) {
+      final file = File(result.files.single.path!);
+      final bytes = await file.readAsBytes();
+      final base64String = base64Encode(bytes);
+      
+      final sizeMb = (bytes.length / (1024 * 1024)).toStringAsFixed(2);
+      final sizeStr = bytes.length > 1024 * 1024 ? '$sizeMb MB' : '${(bytes.length / 1024).toStringAsFixed(1)} KB';
+      
+      // Determine type based on extension
+      String type = 'application/octet-stream';
+      final ext = result.files.single.extension?.toLowerCase();
+      if (['png', 'jpg', 'jpeg', 'gif'].contains(ext)) type = 'image/$ext';
+      else if (ext == 'pdf') type = 'application/pdf';
+      else if (ext == 'txt') type = 'text/plain';
+
+      ref.read(foldersProvider.notifier).createDocument(
+        selectedFolder!.slug,
+        result.files.single.name,
+        type,
+        sizeStr,
+        base64String, // Note: the backend handles text/plain directly or base64. Since we just send content, backend takes it as is.
+      );
+    }
+  }
+
   Widget _buildFoldersList(List<FolderModel> folders) {
     if (folders.isEmpty) {
-      return const Center(child: Text('No folders found.'));
+      return const Center(child: Text('No folders found.', style: TextStyle(color: Colors.white)));
     }
     return ListView.builder(
       itemCount: folders.length,
       itemBuilder: (context, index) {
         final folder = folders[index];
-        return ListTile(
-          leading: const Icon(Icons.folder, color: Colors.blue),
-          title: Text(folder.name),
-          onTap: () {
-            setState(() {
-              selectedFolder = folder;
-            });
-            ref.read(foldersProvider.notifier).fetchFolderFiles(folder.slug);
-          },
+        return Card(
+          color: ColorSchemes.darkSurface,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: ListTile(
+            leading: const Icon(Icons.folder, color: ColorSchemes.primaryBlue),
+            title: Text(folder.name, style: const TextStyle(color: Colors.white)),
+            onTap: () {
+              setState(() {
+                selectedFolder = folder;
+              });
+              ref.read(foldersProvider.notifier).fetchFolderFiles(folder.slug);
+            },
+          ),
         );
       },
     );
@@ -74,7 +116,7 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
 
   Widget _buildFilesList(List<FolderFileModel> files) {
     if (files.isEmpty) {
-      return const Center(child: Text('No documents in this folder.'));
+      return const Center(child: Text('No documents in this folder.', style: TextStyle(color: Colors.white)));
     }
     return ListView.builder(
       itemCount: files.length,
@@ -86,13 +128,35 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
         if (file.type.contains('word')) iconData = Icons.description;
         if (file.type.contains('excel') || file.type.contains('spreadsheet')) iconData = Icons.table_chart;
 
-        return ListTile(
-          leading: Icon(iconData, color: Colors.blueGrey),
-          title: Text(file.name),
-          subtitle: Text('${file.size} • ${file.updatedAt.toString().split('.')[0]}'),
-          onTap: () {
-            // TODO: Navigate to Document Viewer/Editor
-          },
+        return Card(
+          color: ColorSchemes.darkSurface,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: ListTile(
+            leading: Icon(iconData, color: Colors.blueGrey),
+            title: Text(file.name, style: const TextStyle(color: Colors.white)),
+            subtitle: Text('${file.size} • ${file.updatedAt.toString().split('.')[0]}', style: const TextStyle(color: Colors.white70)),
+            onTap: () async {
+              // Check if the file content is a valid URL
+              final content = file.content?.trim();
+              if (content != null && (content.startsWith('http://') || content.startsWith('https://'))) {
+                final uri = Uri.tryParse(content);
+                if (uri != null && await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  return;
+                }
+              }
+
+              // Otherwise open the DocumentViewerScreen
+              if (context.mounted) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DocumentViewerScreen(file: file),
+                  ),
+                );
+              }
+            },
+          ),
         );
       },
     );

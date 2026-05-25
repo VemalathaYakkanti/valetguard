@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/network/dio_client.dart';
 import '../../auth/presentation/auth_provider.dart';
 import '../domain/share_model.dart';
 
@@ -43,16 +42,20 @@ class SharingNotifier extends StateNotifier<SharingState> {
           .map((e) => ShareModel.fromJson(e))
           .toList();
 
-      state = state.copyWith(
-        isLoading: false,
-        shares: list,
-      );
+      if (mounted) {
+        state = state.copyWith(
+          isLoading: false,
+          shares: list,
+        );
+      }
     } on DioException catch (e) {
+      if (!mounted) return;
       state = state.copyWith(
         isLoading: false,
         errorMessage: e.response?.data['message'] ?? e.message,
       );
     } catch (e) {
+      if (!mounted) return;
       state = state.copyWith(
         isLoading: false,
         errorMessage: e.toString(),
@@ -64,9 +67,11 @@ class SharingNotifier extends StateNotifier<SharingState> {
     try {
       final response = await _dio.post('/shares', data: payload);
       await fetchShares(); // refresh list
-      return response.data as Map<String, dynamic>;
+      return {'success': true, 'data': response.data};
+    } on DioException catch (e) {
+      return {'success': false, 'error': e.response?.data?['message'] ?? e.message};
     } catch (e) {
-      return null;
+      return {'success': false, 'error': e.toString()};
     }
   }
 

@@ -58,15 +58,19 @@ class VaultNotifier extends StateNotifier<VaultState> {
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data;
         final credentials = data.map((json) => CredentialModel.fromJson(json)).toList();
-        state = state.copyWith(
-          credentials: credentials,
-          isLoading: false,
-        );
+        if (mounted) {
+          state = state.copyWith(
+            credentials: credentials,
+            isLoading: false,
+          );
+        }
       }
     } on DioException catch (e) {
+      if (!mounted) return;
       final msg = e.response?.data?['message'] ?? 'Failed to load credentials.';
       state = state.copyWith(isLoading: false, errorMessage: msg);
     } catch (e) {
+      if (!mounted) return;
       state = state.copyWith(isLoading: false, errorMessage: 'Unexpected error occurred.');
     }
   }

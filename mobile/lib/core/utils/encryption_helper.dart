@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:pointycastle/export.dart';
-import 'package:encrypt/encrypt.dart' as enc;
 
 class EncryptionHelper {
   static const int iterations = 100000;

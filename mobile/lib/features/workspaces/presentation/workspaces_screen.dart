@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'workspaces_provider.dart';
 
 class WorkspacesScreen extends ConsumerWidget {
-  const WorkspacesScreen({Key? key}) : super(key: key);
+  const WorkspacesScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
