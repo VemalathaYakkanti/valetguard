@@ -8,8 +8,8 @@ class DioClient {
 
   DioClient() {
     _dio.options.baseUrl = dotenv.get('VITE_API_URL', fallback: 'https://valetguard.onrender.com/api');
-    _dio.options.connectTimeout = const Duration(seconds: 15);
-    _dio.options.receiveTimeout = const Duration(seconds: 15);
+    _dio.options.connectTimeout = const Duration(seconds: 60);
+    _dio.options.receiveTimeout = const Duration(seconds: 60);
 
     _dio.interceptors.add(
       InterceptorsWrapper(

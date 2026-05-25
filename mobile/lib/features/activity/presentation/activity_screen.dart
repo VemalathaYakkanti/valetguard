@@ -26,7 +26,7 @@ class ActivityScreen extends ConsumerWidget {
                         return ListTile(
                           leading: const Icon(Icons.history, color: Colors.blueGrey),
                           title: Text(log.action),
-                          subtitle: Text('${log.details}\n${log.createdAt.toString().split('.')[0]} - IP: ${log.ipAddress}'),
+                          subtitle: Text('${log.details ?? ""}\n${log.createdAt.toString().split('.')[0]} - IP: ${log.ipAddress ?? "Unknown"}'),
                           isThreeLine: true,
                         );
                       },
