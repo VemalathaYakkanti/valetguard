@@ -13,6 +13,7 @@ import {
   FileSpreadsheet,
   Share2,
   History,
+  Users,
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { cn } from '../lib/utils'
@@ -107,6 +108,7 @@ export default function Sidebar() {
         <div className="space-y-1">
           <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest px-4 mb-2">Collaboration</p>
           <SidebarItem to="/share-access" icon={Share2} label="Share Access" />
+          <SidebarItem to="/employees" icon={Users} label="Employee List" />
           <SidebarItem to="/activity" icon={History} label="Activity Log" />
         </div>
 

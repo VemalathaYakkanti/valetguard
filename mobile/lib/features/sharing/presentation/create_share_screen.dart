@@ -36,6 +36,8 @@ class _CreateShareScreenState extends ConsumerState<CreateShareScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final sharingState = ref.watch(sharingProvider);
+
     return Scaffold(
       backgroundColor: ColorSchemes.darkBackground,
       appBar: AppBar(
@@ -71,7 +73,7 @@ class _CreateShareScreenState extends ConsumerState<CreateShareScreen> {
               );
             },
             steps: [
-              _buildDetailsStep(),
+              _buildDetailsStep(sharingState),
               _buildPermissionsStep(),
               _buildItemsStep(),
               _buildPreviewStep(),
@@ -143,7 +145,7 @@ class _CreateShareScreenState extends ConsumerState<CreateShareScreen> {
     }
   }
 
-  Step _buildDetailsStep() {
+  Step _buildDetailsStep(SharingState sharingState) {
     return Step(
       title: const Text('Guest Details', style: TextStyle(color: Colors.white)),
       isActive: _currentStep >= 0,
@@ -151,6 +153,30 @@ class _CreateShareScreenState extends ConsumerState<CreateShareScreen> {
         key: _formKey,
         child: Column(
           children: [
+            if (sharingState.employees.isNotEmpty) ...[
+              DropdownButtonFormField<EmployeeModel>(
+                decoration: const InputDecoration(
+                  labelText: 'Select Existing Employee (Optional)',
+                  labelStyle: TextStyle(color: Colors.white70),
+                ),
+                dropdownColor: ColorSchemes.darkSurface,
+                style: const TextStyle(color: Colors.white),
+                items: sharingState.employees.map((emp) => DropdownMenuItem(
+                  value: emp,
+                  child: Text('${emp.name} (${emp.email})'),
+                )).toList(),
+                onChanged: (emp) {
+                  if (emp != null) {
+                    setState(() {
+                      _nameController.text = emp.name;
+                      _emailController.text = emp.email;
+                      _employerController.text = emp.companyName ?? '';
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
             TextFormField(
               controller: _nameController,
               style: const TextStyle(color: Colors.white),

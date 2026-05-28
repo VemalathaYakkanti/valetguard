@@ -13,6 +13,7 @@ import Trash from './pages/Trash'
 import ShareAccess from './pages/ShareAccess'
 import GuestLogin from './pages/GuestLogin'
 import GuestVault from './pages/GuestVault'
+import Employees from './pages/Employees'
 import DashboardLayout from './layouts/DashboardLayout'
 import FolderView from './pages/FolderView'
 import { useAuthStore } from './store/authStore'
@@ -51,6 +52,7 @@ function App() {
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/trash" element={<Trash />} />
           <Route path="/share-access" element={<ShareAccess />} />
+          <Route path="/employees" element={<Employees />} />
           <Route path="/folder/:id" element={<FolderView />} />
         </Route>
 

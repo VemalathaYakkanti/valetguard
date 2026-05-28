@@ -101,6 +101,17 @@ const tables = [
       folder_file_id BIGINT NOT NULL,
       FOREIGN KEY (guest_user_id) REFERENCES guest_users(id) ON DELETE CASCADE,
       FOREIGN KEY (folder_file_id) REFERENCES folder_files(id) ON DELETE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS employees (
+      id BIGINT PRIMARY KEY AUTO_INCREMENT,
+      user_id BIGINT NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      company_name VARCHAR(255),
+      role VARCHAR(255),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE KEY unique_user_employee_email (user_id, email)
   )`
 ];
 

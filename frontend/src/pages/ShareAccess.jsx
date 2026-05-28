@@ -28,6 +28,18 @@ function CreateShareModal({ onClose, token, credentials, folders, files }) {
   const [step, setStep] = useState('details') // details | credentials | confirm | success
   const [successData, setSuccessData] = useState(null)
   const [copied, setCopied] = useState(false)
+  const [employees, setEmployees] = useState([])
+
+  useEffect(() => {
+    fetch(`${apiUrl}/employees`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setEmployees(data)
+      })
+      .catch(() => {})
+  }, [token])
 
   const toggleCred = (id) => {
     setSelectedCreds(prev =>
@@ -139,6 +151,33 @@ function CreateShareModal({ onClose, token, credentials, folders, files }) {
             {/* Step 1: Recipient Details */}
             {step === 'details' && (
               <motion.div key="details" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
+                
+                {employees.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center space-x-1.5"><Users size={11} /><span>Select Existing Employee (Optional)</span></label>
+                    <select
+                      onChange={(e) => {
+                        const empId = e.target.value;
+                        if (!empId) return;
+                        const selected = employees.find(emp => emp.id.toString() === empId);
+                        if (selected) {
+                          setForm(f => ({
+                            ...f,
+                            recipientName: selected.name,
+                            recipientEmail: selected.email,
+                            employerName: selected.company_name || '',
+                          }));
+                        }
+                      }}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-sm"
+                    >
+                      <option value="">-- Choose Employee --</option>
+                      {employees.map(emp => (
+                        <option key={emp.id} value={emp.id}>{emp.name} ({emp.email})</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-5">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center space-x-1.5"><User size={11} /><span>Recipient Name *</span></label>

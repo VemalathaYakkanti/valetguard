@@ -68,6 +68,23 @@ export const createShare = async (req, res) => {
     const otpExpiresAt = new Date();
     otpExpiresAt.setHours(otpExpiresAt.getHours() + 24);
 
+    // Auto-save/update in employees table
+    const [existingEmp] = await pool.query(
+      'SELECT id FROM employees WHERE user_id = ? AND email = ?',
+      [adminId, recipientEmail]
+    );
+    if (existingEmp.length === 0) {
+      await pool.query(
+        'INSERT INTO employees (user_id, name, email, company_name, role) VALUES (?, ?, ?, ?, ?)',
+        [adminId, recipientName, recipientEmail, employerName || null, 'Guest User']
+      );
+    } else {
+      await pool.query(
+        'UPDATE employees SET name = ?, company_name = ? WHERE user_id = ? AND email = ?',
+        [recipientName, employerName || null, adminId, recipientEmail]
+      );
+    }
+
     // Check if guest user with this email already exists
     const [existingGuest] = await pool.query('SELECT id FROM guest_users WHERE email = ?', [recipientEmail]);
 
@@ -256,16 +273,21 @@ export const guestLogin = async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials.' });
     }
 
-    // Verify OTP
-    if (!guest.setup_otp_hash) {
-      return res.status(400).json({ message: 'OTP not set. Contact the admin who shared with you.' });
-    }
-    if (new Date() > new Date(guest.otp_expires_at)) {
-      return res.status(400).json({ message: 'OTP has expired. Ask the admin to resend the invitation.' });
-    }
-    const otpMatch = await bcrypt.compare(otp, guest.setup_otp_hash);
-    if (!otpMatch) {
-      return res.status(400).json({ message: 'Invalid OTP.' });
+    // Verify OTP (only required for activation/first login)
+    if (!guest.is_activated) {
+      if (!otp) {
+        return res.status(400).json({ message: 'OTP is required for first-time activation.' });
+      }
+      if (!guest.setup_otp_hash) {
+        return res.status(400).json({ message: 'OTP not set. Contact the admin who shared with you.' });
+      }
+      if (new Date() > new Date(guest.otp_expires_at)) {
+        return res.status(400).json({ message: 'OTP has expired. Ask the admin to resend the invitation.' });
+      }
+      const otpMatch = await bcrypt.compare(otp, guest.setup_otp_hash);
+      if (!otpMatch) {
+        return res.status(400).json({ message: 'Invalid OTP.' });
+      }
     }
 
     // Mark activated
