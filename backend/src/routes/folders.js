@@ -29,8 +29,20 @@ const STARTER_SEEDS = {
 router.get('/all', auth, async (req, res) => {
   const userId = req.user.id;
   try {
-    const [folders] = await pool.query('SELECT id, name, slug, icon FROM folders WHERE user_id = ?', [userId]);
-    const [files] = await pool.query('SELECT id, folder_slug, name, type, size, created_at, updated_at FROM folder_files WHERE user_id = ? ORDER BY updated_at DESC', [userId]);
+    // Check if there is an active thread connection
+    const [threads] = await pool.query(
+      'SELECT user_a_id, user_b_id FROM user_threads WHERE user_a_id = ? OR user_b_id = ?',
+      [userId, userId]
+    );
+
+    let userIds = [userId];
+    if (threads.length > 0) {
+      const otherId = threads[0].user_a_id === userId ? threads[0].user_b_id : threads[0].user_a_id;
+      userIds.push(otherId);
+    }
+
+    const [folders] = await pool.query('SELECT id, name, slug, icon FROM folders WHERE user_id IN (?)', [userIds]);
+    const [files] = await pool.query('SELECT id, folder_slug, name, type, size, created_at, updated_at FROM folder_files WHERE user_id IN (?) ORDER BY updated_at DESC', [userIds]);
     res.json({ folders, files });
   } catch (error) {
     console.error('Folders all GET error:', error.message);
@@ -47,6 +59,18 @@ router.get('/:slug/files', auth, async (req, res) => {
   const { slug } = req.params;
 
   try {
+    // Check if there is an active thread connection
+    const [threads] = await pool.query(
+      'SELECT user_a_id, user_b_id FROM user_threads WHERE user_a_id = ? OR user_b_id = ?',
+      [userId, userId]
+    );
+
+    let userIds = [userId];
+    if (threads.length > 0) {
+      const otherId = threads[0].user_a_id === userId ? threads[0].user_b_id : threads[0].user_a_id;
+      userIds.push(otherId);
+    }
+
     // 1. Ensure folder entity exists
     let [folderRows] = await pool.query('SELECT * FROM folders WHERE user_id = ? AND slug = ?', [userId, slug]);
     if (folderRows.length === 0) {
@@ -60,10 +84,10 @@ router.get('/:slug/files', auth, async (req, res) => {
       folderRows = newRows;
     }
 
-    // 2. Query folder files
+    // 2. Query folder files from either user
     const [fileRows] = await pool.query(
-      'SELECT * FROM folder_files WHERE user_id = ? AND folder_slug = ? ORDER BY updated_at DESC',
-      [userId, slug]
+      'SELECT * FROM folder_files WHERE user_id IN (?) AND folder_slug = ? ORDER BY updated_at DESC',
+      [userIds, slug]
     );
 
     // 3. If zero files and it is a standard slug, seed defaults
@@ -90,6 +114,7 @@ router.get('/:slug/files', auth, async (req, res) => {
     res.status(500).json({ message: 'Failed to retrieve folder contents', error: error.message });
   }
 });
+
 
 /**
  * POST /api/folders/:slug/files

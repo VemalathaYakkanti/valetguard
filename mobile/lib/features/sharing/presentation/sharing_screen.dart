@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'sharing_provider.dart';
 import 'create_share_screen.dart';
 import '../../../core/theme/color_schemes.dart';
+
 
 class SharingScreen extends ConsumerStatefulWidget {
   const SharingScreen({super.key});
@@ -48,12 +50,33 @@ class _SharingScreenState extends ConsumerState<SharingScreen> {
                             isThreeLine: true,
                             trailing: isExpired
                                 ? const Text('Expired', style: TextStyle(color: Colors.red))
-                                : IconButton(
-                                    icon: const Icon(Icons.delete, color: Colors.redAccent),
-                                    onPressed: () {
-                                      ref.read(sharingProvider.notifier).revokeShare(share.id);
-                                    },
+                                : Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.share, color: ColorSchemes.primaryBlue, size: 20),
+                                        onPressed: () {
+                                          final shareText = 
+                                            '🔒 *VaultGuard Shared Access*\n\n'
+                                            'Hello ${share.name},\n'
+                                            'You have an active shared access session on VaultGuard:\n\n'
+                                            '🌐 *Login Portal:* https://valetguard.vercel.app/guest-login\n'
+                                            '📧 *Authorized Email:* ${share.email}\n'
+                                            '⏱️ *Expires:* ${share.expiresAt.toString().split('.')[0]}\n\n'
+                                            'If you need your temporary password or verification OTP reset, please contact the administrator.';
+                                          SharePlus.instance.share(ShareParams(text: shareText, subject: 'VaultGuard Shared Access'));
+
+                                        },
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete, color: Colors.redAccent, size: 20),
+                                        onPressed: () {
+                                          ref.read(sharingProvider.notifier).revokeShare(share.id);
+                                        },
+                                      ),
+                                    ],
                                   ),
+
                           ),
                         );
                       },

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 import 'sharing_provider.dart';
 import '../../vault/presentation/vault_provider.dart';
 import '../../folders/presentation/folders_provider.dart';
 import '../../../core/theme/color_schemes.dart';
+
 
 class CreateShareScreen extends ConsumerStatefulWidget {
   const CreateShareScreen({Key? key}) : super(key: key);
@@ -185,13 +187,14 @@ class _CreateShareScreenState extends ConsumerState<CreateShareScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'The invitation is being sent. You can also copy the guest credentials below as a backup.',
+            'Use the sharing options below to send the secure login credentials to the recipient.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
               color: Colors.white70,
             ),
           ),
+
           const SizedBox(height: 32),
           Container(
             padding: const EdgeInsets.all(20),
@@ -332,7 +335,29 @@ class _CreateShareScreenState extends ConsumerState<CreateShareScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.share, color: Colors.white),
+            label: const Text('Share Natively (WhatsApp, SMS, etc.)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            onPressed: () {
+              final credentialsText = 
+                '🔒 *VaultGuard Shared Access Details*\n\n'
+                'Hello ${_nameController.text},\n'
+                'Access has been shared with you on VaultGuard. Use the details below to log in and view your shared vault:\n\n'
+                '🌐 *Login Portal:* $loginUrl\n'
+                '📧 *Authorized Email:* $email\n'
+                '🔑 *Temporary Password:* $tempPassword\n'
+                '⏱️ *One-Time OTP:* $otp\n\n'
+                '⚠️ *Note:* The OTP is valid for exactly 24 hours. Once logged in, your shared vault remains zero-knowledge encrypted.';
+              SharePlus.instance.share(ShareParams(text: credentialsText, subject: 'VaultGuard Shared Access Credentials'));
+
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: ColorSchemes.primaryBlue,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+          const SizedBox(height: 12),
           ElevatedButton.icon(
             icon: const Icon(Icons.copy, color: Colors.white),
             label: const Text('Copy All Credentials', style: TextStyle(color: Colors.white)),
@@ -360,12 +385,13 @@ class _CreateShareScreenState extends ConsumerState<CreateShareScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
             style: ElevatedButton.styleFrom(
-              backgroundColor: ColorSchemes.primaryBlue,
+              backgroundColor: const Color(0xFF334155),
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
             child: const Text('Done', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
+
         ],
       ),
     );
@@ -534,7 +560,7 @@ class _CreateShareScreenState extends ConsumerState<CreateShareScreen> {
           _previewRow('Permissions', 'View Pwd: $_canViewPassword, Copy Pwd: $_canCopyPassword, View Notes: $_canViewNotes'),
           _previewRow('Items Shared', '${_selectedCredentialIds.length} Credentials, ${_selectedFolderSlugs.length} Folders, ${_selectedFileIds.length} Files'),
           const SizedBox(height: 16),
-          const Text('An email will be sent to the recipient with a secure link to access these items.', style: TextStyle(color: Colors.white70)),
+          const Text('You can share the secure vault credentials natively with the recipient using any messaging application.', style: TextStyle(color: Colors.white70)),
         ],
       ),
     );

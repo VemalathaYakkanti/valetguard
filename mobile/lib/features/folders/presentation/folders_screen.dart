@@ -6,7 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:open_file_plus/open_file_plus.dart';
+import 'package:open_file/open_file.dart';
+
 import 'folders_provider.dart';
 import '../domain/folder_model.dart';
 import 'document_viewer_screen.dart';
@@ -144,8 +145,19 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
               String content = file.content?.trim() ?? '';
               String name = file.name.trim();
 
+              // Parse JSON URL if stored as JSON structure (like {"url": "..."})
+              if (content.startsWith('{') && content.endsWith('}')) {
+                try {
+                  final parsed = jsonDecode(content);
+                  if (parsed is Map && parsed.containsKey('url')) {
+                    content = parsed['url']?.toString().trim() ?? '';
+                  }
+                } catch (_) {}
+              }
+
               String urlToLaunch = '';
               if (content.startsWith('http://') || content.startsWith('https://')) {
+
                 urlToLaunch = content;
               } else if (name.startsWith('http://') || name.startsWith('https://')) {
                 urlToLaunch = name;
@@ -161,11 +173,16 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
 
               if (urlToLaunch.isNotEmpty) {
                 final uri = Uri.tryParse(urlToLaunch);
-                if (uri != null && await canLaunchUrl(uri)) {
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  return;
+                if (uri != null) {
+                  try {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    return;
+                  } catch (e) {
+                    // Fallback to text viewer if URL cannot be parsed or opened
+                  }
                 }
               }
+
 
               // Otherwise open the file using external app or DocumentViewerScreen
               if (context.mounted) {

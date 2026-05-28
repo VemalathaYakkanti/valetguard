@@ -112,8 +112,28 @@ const tables = [
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       UNIQUE KEY unique_user_employee_email (user_id, email)
+  )`,
+  `CREATE TABLE IF NOT EXISTS user_threads (
+      id BIGINT PRIMARY KEY AUTO_INCREMENT,
+      user_a_id BIGINT NOT NULL,
+      user_b_id BIGINT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_a_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_b_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE KEY unique_thread (user_a_id, user_b_id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS thread_pins (
+      id BIGINT PRIMARY KEY AUTO_INCREMENT,
+      user_id BIGINT NOT NULL,
+      pin VARCHAR(10) NOT NULL,
+      confirmed_by_creator TINYINT(1) DEFAULT 0,
+      expires_at DATETIME NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE KEY unique_user_pin (user_id)
   )`
 ];
+
 
 // Migration: safely add columns to existing databases that predate this schema
 const migrations = [

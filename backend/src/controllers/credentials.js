@@ -4,12 +4,25 @@ import { logActivity } from '../utils/logger.js';
 export const getCredentials = async (req, res) => {
   const userId = req.user.id;
   try {
-    const [rows] = await pool.query('SELECT * FROM credentials WHERE user_id = ? ORDER BY created_at DESC', [userId]);
+    // Check if there is an active thread connection
+    const [threads] = await pool.query(
+      'SELECT user_a_id, user_b_id FROM user_threads WHERE user_a_id = ? OR user_b_id = ?',
+      [userId, userId]
+    );
+
+    let userIds = [userId];
+    if (threads.length > 0) {
+      const otherId = threads[0].user_a_id === userId ? threads[0].user_b_id : threads[0].user_a_id;
+      userIds.push(otherId);
+    }
+
+    const [rows] = await pool.query('SELECT * FROM credentials WHERE user_id IN (?) ORDER BY created_at DESC', [userIds]);
     res.json(rows);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching credentials', error: error.message });
   }
 };
+
 
 export const addCredential = async (req, res) => {
   const userId = req.user.id;
