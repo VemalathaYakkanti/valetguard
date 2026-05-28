@@ -162,6 +162,7 @@ export const createShare = async (req, res) => {
       message: `Access granted. Invitation email is being processed for ${recipientEmail}.`,
       tempPassword,
       otp,
+      loginUrl: `${process.env.APP_URL || 'http://localhost:5173'}/guest-login`,
     });
   } catch (error) {
     console.error('Create share error:', error);
