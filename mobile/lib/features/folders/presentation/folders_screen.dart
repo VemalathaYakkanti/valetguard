@@ -1,13 +1,17 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_file_plus/open_file_plus.dart';
 import 'folders_provider.dart';
 import '../domain/folder_model.dart';
 import 'document_viewer_screen.dart';
 import '../../../core/theme/color_schemes.dart';
+
 
 class FoldersScreen extends ConsumerStatefulWidget {
   const FoldersScreen({super.key});
@@ -163,14 +167,9 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
                 }
               }
 
-              // Otherwise open the DocumentViewerScreen
+              // Otherwise open the file using external app or DocumentViewerScreen
               if (context.mounted) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => DocumentViewerScreen(file: file),
-                  ),
-                );
+                await _openFileWithExternalApp(context, file);
               }
             },
           ),
@@ -178,4 +177,58 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
       },
     );
   }
+
+  Future<void> _openFileWithExternalApp(BuildContext context, FolderFileModel file) async {
+    try {
+      // 1. Get temporary directory
+      final tempDir = await getTemporaryDirectory();
+      final tempPath = tempDir.path;
+      final filePath = '$tempPath/${file.name}';
+      
+      // 2. Decode the content
+      final contentStr = file.content ?? '';
+      Uint8List bytes;
+      if (contentStr.startsWith('data:') && contentStr.contains('base64,')) {
+        // Decode data URL base64
+        final base64Part = contentStr.split('base64,').last;
+        bytes = base64Decode(base64Part);
+      } else {
+        // Try decoding as plain base64
+        try {
+          bytes = base64Decode(contentStr);
+        } catch (e) {
+          // Fallback: convert plain text to bytes
+          bytes = utf8.encode(contentStr);
+        }
+      }
+      
+      // 3. Write to temporary file
+      final tempFile = File(filePath);
+      await tempFile.writeAsBytes(bytes);
+      
+      // 4. Open file
+      final result = await OpenFile.open(filePath);
+      if (result.type != ResultType.done) {
+        // Fallback if not opened successfully
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No app found to open this file. Viewing as text instead.')),
+          );
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DocumentViewerScreen(file: file),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening file: $e')),
+        );
+      }
+    }
+  }
 }
+

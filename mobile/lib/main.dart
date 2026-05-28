@@ -60,9 +60,9 @@ class _VaultGuardAppState extends ConsumerState<VaultGuardApp> with WidgetsBindi
       // App came to foreground
       if (_pausedTime != null) {
         final elapsed = DateTime.now().difference(_pausedTime!);
-        // Lock the app only if it was in the background for more than 10 seconds.
+        // Lock the app only if it was in the background for more than 120 seconds.
         // This prevents the app from locking when picking files or authenticating biometrics.
-        if (elapsed.inSeconds > 10) {
+        if (elapsed.inSeconds > 120) {
           ref.read(authProvider.notifier).lock();
         }
         _pausedTime = null;
@@ -70,6 +70,7 @@ class _VaultGuardAppState extends ConsumerState<VaultGuardApp> with WidgetsBindi
       _resetInactivityTimer();
     }
   }
+
 
   void _resetInactivityTimer() {
     _inactivityTimer?.cancel();
