@@ -141,8 +141,8 @@ export const createShare = async (req, res) => {
       );
     }
 
-    // Send invitation email
-    const emailStatus = await sendGuestInviteEmail({
+    // Send invitation email in background without awaiting, to prevent timeouts from slow/blocked SMTP connections
+    sendGuestInviteEmail({
       recipientEmail,
       recipientName,
       adminName,
@@ -150,6 +150,8 @@ export const createShare = async (req, res) => {
       tempPassword,
       otp,
       expiresAt,
+    }).catch(err => {
+      console.error('Background guest invite email failed:', err);
     });
 
     const durationStr = expiresInHours ? `${expiresInHours} hour(s)` : `${expiresInDays || 30} day(s)`;
@@ -157,14 +159,9 @@ export const createShare = async (req, res) => {
     await logActivity(adminId, 'SHARE_CREATED', `Shared ${totalItems} item(s) with ${recipientEmail} for ${durationStr}`);
 
     res.status(201).json({
-      message: emailStatus?.success 
-        ? `Invitation email sent successfully to ${recipientEmail}` 
-        : `Access granted, but email delivery was skipped/failed. You can share credentials manually.`,
+      message: `Access granted. Invitation email is being processed for ${recipientEmail}.`,
       tempPassword,
       otp,
-      loginUrl: `${process.env.APP_URL || 'http://localhost:5173'}/guest-login`,
-      emailSent: emailStatus?.success || false,
-      expiresAt
     });
   } catch (error) {
     console.error('Create share error:', error);

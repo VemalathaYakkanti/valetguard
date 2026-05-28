@@ -49,13 +49,24 @@ class _VaultGuardAppState extends ConsumerState<VaultGuardApp> with WidgetsBindi
     super.dispose();
   }
 
+  DateTime? _pausedTime;
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) {
       // App went to background
-      ref.read(authProvider.notifier).lock();
+      _pausedTime = DateTime.now();
     } else if (state == AppLifecycleState.resumed) {
       // App came to foreground
+      if (_pausedTime != null) {
+        final elapsed = DateTime.now().difference(_pausedTime!);
+        // Lock the app only if it was in the background for more than 10 seconds.
+        // This prevents the app from locking when picking files or authenticating biometrics.
+        if (elapsed.inSeconds > 10) {
+          ref.read(authProvider.notifier).lock();
+        }
+        _pausedTime = null;
+      }
       _resetInactivityTimer();
     }
   }

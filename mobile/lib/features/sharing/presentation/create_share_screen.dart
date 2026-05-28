@@ -155,6 +155,7 @@ class _CreateShareScreenState extends ConsumerState<CreateShareScreen> {
           children: [
             if (sharingState.employees.isNotEmpty) ...[
               DropdownButtonFormField<EmployeeModel>(
+                isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Select Existing Employee (Optional)',
                   labelStyle: TextStyle(color: Colors.white70),

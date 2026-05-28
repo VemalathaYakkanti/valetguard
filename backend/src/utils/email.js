@@ -15,6 +15,9 @@ const transporter = nodemailer.createTransport({
     // Bypasses local antivirus/firewall proxy self-signed cert checks during development
     rejectUnauthorized: false,
   },
+  connectionTimeout: 5000,
+  greetingTimeout: 5000,
+  socketTimeout: 5000,
 });
 
 /**

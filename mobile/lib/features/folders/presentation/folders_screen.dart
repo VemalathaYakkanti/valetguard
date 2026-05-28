@@ -136,10 +136,27 @@ class _FoldersScreenState extends ConsumerState<FoldersScreen> {
             title: Text(file.name, style: const TextStyle(color: Colors.white)),
             subtitle: Text('${file.size} • ${file.updatedAt.toString().split('.')[0]}', style: const TextStyle(color: Colors.white70)),
             onTap: () async {
-              // Check if the file content is a valid URL
-              final content = file.content?.trim();
-              if (content != null && (content.startsWith('http://') || content.startsWith('https://'))) {
-                final uri = Uri.tryParse(content);
+              // Check if either the content or the file name is a URL/link
+              String content = file.content?.trim() ?? '';
+              String name = file.name.trim();
+
+              String urlToLaunch = '';
+              if (content.startsWith('http://') || content.startsWith('https://')) {
+                urlToLaunch = content;
+              } else if (name.startsWith('http://') || name.startsWith('https://')) {
+                urlToLaunch = name;
+              } else {
+                // Check if they look like links without prefix (e.g. google.com or www.google.com)
+                final domainRegex = RegExp(r'^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(/.*)?$');
+                if (domainRegex.hasMatch(content)) {
+                  urlToLaunch = 'https://$content';
+                } else if (domainRegex.hasMatch(name)) {
+                  urlToLaunch = 'https://$name';
+                }
+              }
+
+              if (urlToLaunch.isNotEmpty) {
+                final uri = Uri.tryParse(urlToLaunch);
                 if (uri != null && await canLaunchUrl(uri)) {
                   await launchUrl(uri, mode: LaunchMode.externalApplication);
                   return;
