@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Shield, LogOut, Copy, Eye, EyeOff, Key, Globe, Loader2,
   Clock, Lock, Star, ShieldCheck, Folder, FileText, Download, Link as LinkIcon, ExternalLink, X

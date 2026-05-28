@@ -163,6 +163,7 @@ export const createShare = async (req, res) => {
       tempPassword,
       otp,
       loginUrl: `${process.env.APP_URL || 'http://localhost:5173'}/guest-login`,
+      emailSent: !!process.env.EMAIL_USER,
     });
   } catch (error) {
     console.error('Create share error:', error);

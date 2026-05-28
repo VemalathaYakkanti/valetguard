@@ -6,7 +6,7 @@ async function run() {
     recipientEmail: 'kagithapushkara@gmail.com',
     recipientName: 'Test Recipient',
     adminName: 'Admin',
-    adminEmail: 'kagithapushkara@gmail.com',
+    adminEmail: 'vemalatha0704@gmail.com',
     tempPassword: 'Vg-TestPassword1!',
     otp: '123456',
     expiresAt: new Date(Date.now() + 24 * 3600 * 1000)

@@ -12,6 +12,7 @@ import sharingRoutes from './routes/sharing.js';
 import foldersRoutes from './routes/folders.js';
 import employeeRoutes from './routes/employees.js';
 
+// Force restart and reload updated .env config
 dotenv.config();
 
 const app = express();
