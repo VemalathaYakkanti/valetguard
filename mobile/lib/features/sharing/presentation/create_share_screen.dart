@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'sharing_provider.dart';
 import '../../vault/presentation/vault_provider.dart';
@@ -33,6 +34,7 @@ class _CreateShareScreenState extends ConsumerState<CreateShareScreen> {
   List<int> _selectedFileIds = [];
 
   bool _isSubmitting = false;
+  Map<String, dynamic>? _successData;
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +49,9 @@ class _CreateShareScreenState extends ConsumerState<CreateShareScreen> {
       ),
       body: _isSubmitting 
         ? const Center(child: CircularProgressIndicator()) 
-        : Stepper(
+        : (_successData != null 
+            ? _buildSuccessView()
+            : Stepper(
             currentStep: _currentStep,
             onStepContinue: _onStepContinue,
             onStepCancel: _onStepCancel,
@@ -78,7 +82,7 @@ class _CreateShareScreenState extends ConsumerState<CreateShareScreen> {
               _buildItemsStep(),
               _buildPreviewStep(),
             ],
-          ),
+          )),
     );
   }
 
@@ -136,13 +140,235 @@ class _CreateShareScreenState extends ConsumerState<CreateShareScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Invitation sent successfully!'), backgroundColor: Colors.green),
       );
-      Navigator.pop(context);
+      setState(() {
+        _successData = result['data'];
+      });
     } else {
       final errorMsg = result?['error'] ?? 'Unknown error';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to create share: $errorMsg'), backgroundColor: Colors.red, duration: const Duration(seconds: 5)),
       );
     }
+  }
+
+  Widget _buildSuccessView() {
+    final loginUrl = _successData!['loginUrl'] ?? 'http://localhost:5173/guest-login';
+    final tempPassword = _successData!['tempPassword'] ?? '';
+    final otp = _successData!['otp'] ?? '';
+    final email = _emailController.text;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 20),
+          Center(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: Color(0xFF10B981),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check, size: 48, color: Colors.white),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Share Created Successfully!',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'The invitation is being sent. You can also copy the guest credentials below as a backup.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.white70,
+            ),
+          ),
+          const SizedBox(height: 32),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: ColorSchemes.darkSurface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'GUEST LOGIN DETAILS',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white38,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    Text(
+                      email,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: ColorSchemes.primaryBlue,
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(height: 24, color: Colors.white10),
+                
+                const Text(
+                  'Login Portal URL',
+                  style: TextStyle(fontSize: 11, color: Colors.white60),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: ColorSchemes.darkBackground,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          loginUrl,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                            color: Colors.white,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(Icons.copy, size: 16, color: Colors.white70),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: loginUrl));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Login URL copied!')),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Temporary Password',
+                            style: TextStyle(fontSize: 11, color: Colors.white60),
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: ColorSchemes.darkBackground,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              tempPassword,
+                              style: const TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'One-Time OTP',
+                            style: TextStyle(fontSize: 11, color: Colors.white60),
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: ColorSchemes.darkBackground,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              otp,
+                              style: const TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF60A5FA),
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.copy, color: Colors.white),
+            label: const Text('Copy All Credentials', style: TextStyle(color: Colors.white)),
+            onPressed: () {
+              final credentialsText = 
+                'VaultGuard Shared Access Details:\n'
+                'Portal: $loginUrl\n'
+                'Email: $email\n'
+                'Password: $tempPassword\n'
+                'OTP: $otp\n'
+                'Note: OTP is valid for 24 hours.';
+              Clipboard.setData(ClipboardData(text: credentialsText));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('All credentials copied to clipboard!')),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1E293B),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              side: const BorderSide(color: Colors.white10),
+            ),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: ColorSchemes.primaryBlue,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            child: const Text('Done', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   Step _buildDetailsStep(SharingState sharingState) {
