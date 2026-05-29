@@ -557,19 +557,108 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     required String salt,
     required String password,
   }) {
-    return StatefulBuilder(
-      builder: (context, setState) {
-        final decryptedText = EncryptionHelper.decryptData(
-          ciphertextBase64: ciphertext,
-          ivBase64: iv,
-          saltBase64: salt,
-          password: password,
-        );
+    bool isObscured = true;
+    String decryptedText = '';
+    bool hasDecrypted = false;
+    bool hasError = false;
 
-        return _buildDetailCard(
-          label: label,
-          value: decryptedText,
-          onCopy: () => _copyToClipboard(decryptedText, label),
+    return StatefulBuilder(
+      builder: (context, setCardState) {
+        String displayValue;
+        if (isObscured) {
+          displayValue = '••••••••';
+        } else {
+          if (!hasDecrypted) {
+            try {
+              decryptedText = EncryptionHelper.decryptData(
+                ciphertextBase64: ciphertext,
+                ivBase64: iv,
+                saltBase64: salt,
+                password: password,
+              );
+              hasDecrypted = true;
+              hasError = false;
+            } catch (e) {
+              decryptedText = 'Decryption failed';
+              hasError = true;
+            }
+          }
+          displayValue = decryptedText;
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: ColorSchemes.darkBackground,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF1E293B)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label.toUpperCase(),
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  color: ColorSchemes.textMuted,
+                  letterSpacing: 1.5,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      displayValue,
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        color: hasError ? Colors.redAccent : Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      isObscured ? LucideIcons.eye : LucideIcons.eyeOff,
+                      size: 18,
+                      color: ColorSchemes.textSecondary,
+                    ),
+                    onPressed: () {
+                      setCardState(() {
+                        isObscured = !isObscured;
+                      });
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(LucideIcons.copy, size: 18, color: ColorSchemes.textSecondary),
+                    onPressed: () {
+                      String textToCopy = decryptedText;
+                      if (!hasDecrypted) {
+                        try {
+                          textToCopy = EncryptionHelper.decryptData(
+                            ciphertextBase64: ciphertext,
+                            ivBase64: iv,
+                            saltBase64: salt,
+                            password: password,
+                          );
+                        } catch (e) {
+                          textToCopy = '';
+                        }
+                      }
+                      if (textToCopy.isNotEmpty && textToCopy != 'Decryption failed') {
+                        _copyToClipboard(textToCopy, label);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Failed to decrypt for copy'), backgroundColor: Colors.redAccent),
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
         );
       },
     );

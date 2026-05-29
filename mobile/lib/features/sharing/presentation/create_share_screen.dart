@@ -218,13 +218,29 @@ class _CreateShareScreenState extends ConsumerState<CreateShareScreen> {
                         letterSpacing: 1.2,
                       ),
                     ),
-                    Text(
-                      email,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: ColorSchemes.primaryBlue,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          email,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: ColorSchemes.primaryBlue,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        IconButton(
+                          constraints: const BoxConstraints(),
+                          padding: EdgeInsets.zero,
+                          icon: const Icon(Icons.copy, size: 14, color: ColorSchemes.primaryBlue),
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: email));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Email copied!')),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -282,19 +298,36 @@ class _CreateShareScreenState extends ConsumerState<CreateShareScreen> {
                           ),
                           const SizedBox(height: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               color: ColorSchemes.darkBackground,
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Text(
-                              tempPassword,
-                              style: const TextStyle(
-                                fontFamily: 'monospace',
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    tempPassword,
+                                    style: const TextStyle(
+                                      fontFamily: 'monospace',
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  constraints: const BoxConstraints(),
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(Icons.copy, size: 16, color: Colors.white70),
+                                  onPressed: () {
+                                    Clipboard.setData(ClipboardData(text: tempPassword));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Temporary Password copied!')),
+                                    );
+                                  },
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -311,20 +344,37 @@ class _CreateShareScreenState extends ConsumerState<CreateShareScreen> {
                           ),
                           const SizedBox(height: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               color: ColorSchemes.darkBackground,
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Text(
-                              otp,
-                              style: const TextStyle(
-                                fontFamily: 'monospace',
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF60A5FA),
-                                letterSpacing: 1.0,
-                              ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    otp,
+                                    style: const TextStyle(
+                                      fontFamily: 'monospace',
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF60A5FA),
+                                      letterSpacing: 1.0,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  constraints: const BoxConstraints(),
+                                  padding: EdgeInsets.zero,
+                                  icon: const Icon(Icons.copy, size: 16, color: Colors.white70),
+                                  onPressed: () {
+                                    Clipboard.setData(ClipboardData(text: otp));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('One-Time OTP copied!')),
+                                    );
+                                  },
+                                ),
+                              ],
                             ),
                           ),
                         ],

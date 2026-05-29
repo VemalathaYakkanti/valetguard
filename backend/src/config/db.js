@@ -16,6 +16,7 @@ export const pool = mysql.createPool({
   connectionLimit: 10,
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000,
+  maxAllowedPacket: 67108864, // 64MB
 });
 
 export const query = async (sql, params) => {
