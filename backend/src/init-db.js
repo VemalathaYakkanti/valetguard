@@ -145,6 +145,9 @@ const migrations = [
   `ALTER TABLE credentials ADD COLUMN totp_salt VARCHAR(255)`,
   `ALTER TABLE folders ADD COLUMN slug VARCHAR(100) NOT NULL DEFAULT 'custom'`,
   `ALTER TABLE folder_files MODIFY COLUMN content LONGTEXT`,
+  `ALTER TABLE credentials ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE`,
+  `ALTER TABLE folders ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE`,
+  `ALTER TABLE folder_files ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE`,
 ];
 
 async function setup() {
