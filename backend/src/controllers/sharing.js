@@ -256,15 +256,20 @@ export const guestLogin = async (req, res) => {
 
   try {
     const [guests] = await pool.query(
-      `SELECT * FROM guest_users WHERE email = ? AND expires_at > NOW()`,
+      `SELECT * FROM guest_users WHERE email = ?`,
       [email]
     );
 
     if (!guests.length) {
-      return res.status(400).json({ message: 'No active guest account found for this email.' });
+      return res.status(400).json({ message: 'No guest account found for this email.' });
     }
 
     const guest = guests[0];
+
+    // Enforce access duration limit exactly as requested
+    if (new Date(guest.expires_at) <= new Date()) {
+      return res.status(403).json({ message: 'Time limit is completed, kindly contact the person who shared access.' });
+    }
 
     // Verify password
     const passwordMatch = await bcrypt.compare(password, guest.password_hash);
@@ -357,9 +362,9 @@ export const guestGetCredentials = async (req, res) => {
       [guestId, guestId]
     );
 
-    // If can_view_password is false, strip the encrypted fields
+    // If can_view_password AND can_copy_password are both false, strip the encrypted fields
     const sanitized = creds.map(row => {
-      if (!row.can_view_password) {
+      if (!row.can_view_password && !row.can_copy_password) {
         return {
           ...row,
           encrypted_password: null,

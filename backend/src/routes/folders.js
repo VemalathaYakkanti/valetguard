@@ -41,8 +41,8 @@ router.get('/all', auth, async (req, res) => {
       userIds.push(otherId);
     }
 
-    const [folders] = await pool.query('SELECT id, name, slug, icon FROM folders WHERE user_id IN (?)', [userIds]);
-    const [files] = await pool.query('SELECT id, folder_slug, name, type, size, created_at, updated_at FROM folder_files WHERE user_id IN (?) ORDER BY updated_at DESC', [userIds]);
+    const [folders] = await pool.query('SELECT id, name, slug, icon FROM folders WHERE user_id IN (?) AND is_deleted = 0', [userIds]);
+    const [files] = await pool.query('SELECT id, folder_slug, name, type, size, created_at, updated_at FROM folder_files WHERE user_id IN (?) AND is_deleted = 0 ORDER BY updated_at DESC', [userIds]);
     res.json({ folders, files });
   } catch (error) {
     console.error('Folders all GET error:', error.message);
@@ -72,21 +72,26 @@ router.get('/:slug/files', auth, async (req, res) => {
     }
 
     // 1. Ensure folder entity exists
-    let [folderRows] = await pool.query('SELECT * FROM folders WHERE user_id = ? AND slug = ?', [userId, slug]);
+    let [folderRows] = await pool.query('SELECT * FROM folders WHERE user_id = ? AND slug = ? AND is_deleted = 0', [userId, slug]);
     if (folderRows.length === 0) {
-      const folderName = slug.charAt(0).toUpperCase() + slug.slice(1);
-      const [insertRes] = await pool.query(
-        'INSERT INTO folders (user_id, name, slug, icon) VALUES (?, ?, ?, ?)',
-        [userId, folderName, slug, 'folder']
-      );
-      // fetch back
-      const [newRows] = await pool.query('SELECT * FROM folders WHERE id = ?', [insertRes.insertId]);
-      folderRows = newRows;
+      let [existingDeleted] = await pool.query('SELECT * FROM folders WHERE user_id = ? AND slug = ?', [userId, slug]);
+      if (existingDeleted.length > 0) {
+        await pool.query('UPDATE folders SET is_deleted = 0 WHERE id = ?', [existingDeleted[0].id]);
+        folderRows = existingDeleted;
+      } else {
+        const folderName = slug.charAt(0).toUpperCase() + slug.slice(1);
+        const [insertRes] = await pool.query(
+          'INSERT INTO folders (user_id, name, slug, icon) VALUES (?, ?, ?, ?)',
+          [userId, folderName, slug, 'folder']
+        );
+        const [newRows] = await pool.query('SELECT * FROM folders WHERE id = ?', [insertRes.insertId]);
+        folderRows = newRows;
+      }
     }
 
     // 2. Query folder files from either user
     const [fileRows] = await pool.query(
-      'SELECT * FROM folder_files WHERE user_id IN (?) AND folder_slug = ? ORDER BY updated_at DESC',
+      'SELECT * FROM folder_files WHERE user_id IN (?) AND folder_slug = ? AND is_deleted = 0 ORDER BY updated_at DESC',
       [userIds, slug]
     );
 
@@ -178,11 +183,29 @@ router.delete('/files/:id', auth, async (req, res) => {
     const [check] = await pool.query('SELECT name FROM folder_files WHERE id = ? AND user_id = ?', [id, userId]);
     if (check.length === 0) return res.status(404).json({ message: 'Document not found' });
 
-    await pool.query('DELETE FROM folder_files WHERE id = ? AND user_id = ?', [id, userId]);
+    await pool.query('UPDATE folder_files SET is_deleted = 1 WHERE id = ? AND user_id = ?', [id, userId]);
     await logActivity(userId, 'DOCUMENT_DELETED', `Deleted document "${check[0].name}"`);
     res.json({ message: 'Document deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Failed to delete document', error: error.message });
+  }
+});
+
+router.delete('/:slug', auth, async (req, res) => {
+  const userId = req.user.id;
+  const { slug } = req.params;
+
+  try {
+    const [check] = await pool.query('SELECT name FROM folders WHERE slug = ? AND user_id = ?', [slug, userId]);
+    if (check.length === 0) return res.status(404).json({ message: 'Folder not found' });
+
+    await pool.query('UPDATE folders SET is_deleted = 1 WHERE slug = ? AND user_id = ?', [slug, userId]);
+    await pool.query('UPDATE folder_files SET is_deleted = 1 WHERE folder_slug = ? AND user_id = ?', [slug, userId]);
+
+    await logActivity(userId, 'FOLDER_DELETED', `Deleted folder "${check[0].name}"`);
+    res.json({ message: 'Folder deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to delete folder', error: error.message });
   }
 });
 

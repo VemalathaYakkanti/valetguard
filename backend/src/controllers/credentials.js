@@ -16,7 +16,10 @@ export const getCredentials = async (req, res) => {
       userIds.push(otherId);
     }
 
-    const [rows] = await pool.query('SELECT * FROM credentials WHERE user_id IN (?) ORDER BY created_at DESC', [userIds]);
+    const [rows] = await pool.query(
+      'SELECT * FROM credentials WHERE user_id IN (?) AND is_deleted = 0 ORDER BY created_at DESC',
+      [userIds]
+    );
     res.json(rows);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching credentials', error: error.message });
@@ -57,7 +60,7 @@ export const deleteCredential = async (req, res) => {
   const { id } = req.params;
 
   try {
-    await pool.query('DELETE FROM credentials WHERE id = ? AND user_id = ?', [id, userId]);
+    await pool.query('UPDATE credentials SET is_deleted = 1 WHERE id = ? AND user_id = ?', [id, userId]);
     
     await logActivity(userId, 'CREDENTIAL_DELETED', { id });
 
@@ -99,5 +102,26 @@ export const updateCredential = async (req, res) => {
     res.json({ message: 'Credential updated successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Error updating credential', error: error.message });
+  }
+};
+
+export const toggleFavorite = async (req, res) => {
+  const userId = req.user.id;
+  const { id } = req.params;
+  const { is_favorite } = req.body;
+
+  try {
+    const [result] = await pool.query(
+      'UPDATE credentials SET is_favorite = ? WHERE id = ? AND user_id = ?',
+      [is_favorite ? 1 : 0, id, userId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Credential not found or unauthorized' });
+    }
+
+    res.json({ message: `Credential ${is_favorite ? 'starred' : 'unstarred'}` });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating favorite status', error: error.message });
   }
 };

@@ -31,9 +31,10 @@ import toast from 'react-hot-toast'
 import { cn } from '../lib/utils'
 import { useAuthStore } from '../store/authStore'
 import { encryptData, decryptData } from '../lib/encryption'
-import { authenticator } from 'otplib'
 import { Clock } from 'lucide-react'
 import PasswordGenerator from '../components/PasswordGenerator'
+import { generateTOTP } from '../lib/totp'
+import ConfirmModal from '../components/ConfirmModal'
 
 // TOTP Display Component
 const TOTPDisplay = ({ secret }) => {
@@ -43,9 +44,9 @@ const TOTPDisplay = ({ secret }) => {
   useEffect(() => {
     if (!secret) return
 
-    const updateTOTP = () => {
+    const updateTOTP = async () => {
       try {
-        const newCode = authenticator.generate(secret)
+        const newCode = await generateTOTP(secret)
         setCode(newCode)
         const epoch = Math.floor(Date.now() / 1000)
         setTimeLeft(30 - (epoch % 30))
@@ -115,6 +116,7 @@ export default function Vault() {
   })
 
   const [decryptedTOTP, setDecryptedTOTP] = useState({}) // { id: secret }
+  const [credToDelete, setCredToDelete] = useState(null)
 
   const fetchCredentials = useCallback(async () => {
     setLoading(true)
@@ -279,20 +281,26 @@ export default function Vault() {
     toast.success(`${label} copied`)
   }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this credential?')) return
+  const handleDelete = (id) => {
+    setCredToDelete(id)
+  }
 
+  const handleToggleFavorite = async (id, currentStatus) => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
-      const res = await fetch(`${apiUrl}/credentials/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch(`${apiUrl}/credentials/${id}/favorite`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ is_favorite: !currentStatus })
       })
-      if (!res.ok) throw new Error('Failed to delete')
-      toast.success('Credential deleted')
+      if (!res.ok) throw new Error()
+      toast.success(!currentStatus ? 'Added to favorites' : 'Removed from favorites')
       fetchCredentials()
-    } catch (err) {
-      toast.error('Failed to delete credential')
+    } catch {
+      toast.error('Failed to update favorite status')
     }
   }
 
@@ -301,7 +309,10 @@ export default function Vault() {
       accessorKey: 'is_favorite',
       header: '',
       cell: ({ row }) => (
-        <button className={cn("transition-colors", row.original.is_favorite ? "text-amber-400" : "text-slate-300 hover:text-slate-400")}>
+        <button
+          onClick={() => handleToggleFavorite(row.original.id, row.original.is_favorite)}
+          className={cn("transition-colors", row.original.is_favorite ? "text-amber-400" : "text-slate-300 hover:text-slate-400")}
+        >
           <Star size={16} fill={row.original.is_favorite ? "currentColor" : "none"} />
         </button>
       ),
@@ -531,7 +542,12 @@ export default function Vault() {
                       <Key size={24} />
                     </div>
                     <div className="flex space-x-1">
-                      <button className={cn("p-2 rounded-lg", item.is_favorite ? "text-amber-400" : "text-slate-300")}><Star size={16} fill={item.is_favorite ? "currentColor" : "none"} /></button>
+                      <button
+                        onClick={() => handleToggleFavorite(item.id, item.is_favorite)}
+                        className={cn("p-2 rounded-lg", item.is_favorite ? "text-amber-400" : "text-slate-300")}
+                      >
+                        <Star size={16} fill={item.is_favorite ? "currentColor" : "none"} />
+                      </button>
                     <button 
                         onClick={() => handleOpenEdit(item)}
                         className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-600"
@@ -747,6 +763,30 @@ export default function Vault() {
           <span>AES-256 Vault Locked to this browser</span>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={!!credToDelete}
+        title="Delete Credential"
+        message="Are you sure you want to delete this credential? It will be moved to the Trash."
+        onConfirm={async () => {
+          if (!credToDelete) return
+          try {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+            const res = await fetch(`${apiUrl}/credentials/${credToDelete}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token}` }
+            })
+            if (!res.ok) throw new Error()
+            toast.success('Credential moved to Trash')
+            fetchCredentials()
+          } catch {
+            toast.error('Failed to delete credential')
+          } finally {
+            setCredToDelete(null)
+          }
+        }}
+        onCancel={() => setCredToDelete(null)}
+      />
     </div>
   )
 }

@@ -14,6 +14,7 @@ const tables = [
       user_id BIGINT NOT NULL,
       name VARCHAR(100) NOT NULL,
       icon VARCHAR(50),
+      is_deleted BOOLEAN DEFAULT FALSE,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )`,
   `CREATE TABLE IF NOT EXISTS credentials (
@@ -30,6 +31,7 @@ const tables = [
       encrypted_custom_fields JSON,
       tags JSON,
       is_favorite BOOLEAN DEFAULT FALSE,
+      is_deleted BOOLEAN DEFAULT FALSE,
       encrypted_totp_secret TEXT,
       totp_iv VARCHAR(255),
       totp_salt VARCHAR(255),
@@ -85,6 +87,7 @@ const tables = [
       type VARCHAR(50) NOT NULL,
       size VARCHAR(50) DEFAULT '1 KB',
       content LONGTEXT,
+      is_deleted BOOLEAN DEFAULT FALSE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

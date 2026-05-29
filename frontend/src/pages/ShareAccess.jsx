@@ -25,6 +25,7 @@ function CreateShareModal({ onClose, token, credentials, folders, files }) {
   const [selectedFolders, setSelectedFolders] = useState([])
   const [selectedFiles, setSelectedFiles] = useState([])
   const [loading, setLoading] = useState(false)
+  const [itemSearchQuery, setItemSearchQuery] = useState('')
   const [step, setStep] = useState('details') // details | credentials | confirm | success
   const [successData, setSuccessData] = useState(null)
   const [copied, setCopied] = useState(false)
@@ -243,77 +244,102 @@ function CreateShareModal({ onClose, token, credentials, folders, files }) {
             )}
 
             {/* Step 2: Select Items */}
-            {step === 'credentials' && (
-              <motion.div key="credentials" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
-                <p className="text-sm text-slate-500 font-medium">Select the items to share with <strong className="text-slate-900">{form.recipientName}</strong>:</p>
-                <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
+            {step === 'credentials' && (() => {
+              const filteredCreds = credentials.filter(c =>
+                c.title?.toLowerCase().includes(itemSearchQuery.toLowerCase()) ||
+                c.username?.toLowerCase().includes(itemSearchQuery.toLowerCase())
+              );
+              const filteredFolders = folders.filter(f =>
+                f.name?.toLowerCase().includes(itemSearchQuery.toLowerCase())
+              );
+              const filteredFiles = files.filter(f =>
+                f.name?.toLowerCase().includes(itemSearchQuery.toLowerCase()) ||
+                f.folder_slug?.toLowerCase().includes(itemSearchQuery.toLowerCase())
+              );
+
+              return (
+                <motion.div key="credentials" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+                  <p className="text-sm text-slate-500 font-medium">Select the items to share with <strong className="text-slate-900">{form.recipientName}</strong>:</p>
                   
-                  {/* Credentials Section */}
-                  {credentials.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-black text-slate-400 uppercase tracking-widest sticky top-0 bg-white z-10 py-1">Vault Credentials</p>
-                      {credentials.map(cred => (
-                        <button key={cred.id} type="button" onClick={() => toggleCred(cred.id)}
-                          className={cn('w-full flex items-center space-x-4 p-4 rounded-2xl border transition-all text-left', selectedCreds.includes(cred.id) ? 'bg-blue-50 border-blue-300 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300')}>
-                          <div className={cn('w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all flex-shrink-0', selectedCreds.includes(cred.id) ? 'bg-blue-600 border-blue-600' : 'border-slate-300')}>
-                            {selectedCreds.includes(cred.id) && <CheckCircle2 size={12} className="text-white" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-bold text-slate-900 truncate">{cred.title}</p>
-                            <p className="text-xs text-slate-500 font-medium truncate">{cred.username}</p>
-                          </div>
-                          <Shield size={14} className="text-slate-300 flex-shrink-0" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  {/* Search Bar */}
+                  <div className="relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      value={itemSearchQuery}
+                      onChange={e => setItemSearchQuery(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-semibold"
+                      placeholder="Search credentials, folders, files..."
+                    />
+                  </div>
 
-                  {/* Folders Section */}
-                  {folders.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-black text-slate-400 uppercase tracking-widest sticky top-0 bg-white z-10 py-1">Entire Folders</p>
-                      {folders.map(folder => (
-                        <button key={folder.slug} type="button" onClick={() => setSelectedFolders(prev => prev.includes(folder.slug) ? prev.filter(s => s !== folder.slug) : [...prev, folder.slug])}
-                          className={cn('w-full flex items-center space-x-4 p-4 rounded-2xl border transition-all text-left', selectedFolders.includes(folder.slug) ? 'bg-blue-50 border-blue-300 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300')}>
-                          <div className={cn('w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all flex-shrink-0', selectedFolders.includes(folder.slug) ? 'bg-blue-600 border-blue-600' : 'border-slate-300')}>
-                            {selectedFolders.includes(folder.slug) && <CheckCircle2 size={12} className="text-white" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-bold text-slate-900 truncate">{folder.name}</p>
-                          </div>
-                          <Shield size={14} className="text-slate-300 flex-shrink-0" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
+                    {/* Credentials Section */}
+                    {filteredCreds.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest sticky top-0 bg-white z-10 py-1">Vault Credentials</p>
+                        {filteredCreds.map(cred => (
+                          <button key={cred.id} type="button" onClick={() => toggleCred(cred.id)}
+                            className={cn('w-full flex items-center space-x-4 p-4 rounded-2xl border transition-all text-left', selectedCreds.includes(cred.id) ? 'bg-blue-50 border-blue-300 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300')}>
+                            <div className={cn('w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all flex-shrink-0', selectedCreds.includes(cred.id) ? 'bg-blue-600 border-blue-600' : 'border-slate-300')}>
+                              {selectedCreds.includes(cred.id) && <CheckCircle2 size={12} className="text-white" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-slate-900 truncate">{cred.title}</p>
+                              <p className="text-xs text-slate-500 font-medium truncate">{cred.username}</p>
+                            </div>
+                            <Shield size={14} className="text-slate-300 flex-shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
-                  {/* Specific Documents Section */}
-                  {files.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-black text-slate-400 uppercase tracking-widest sticky top-0 bg-white z-10 py-1">Specific Documents</p>
-                      {files.map(file => (
-                        <button key={file.id} type="button" onClick={() => setSelectedFiles(prev => prev.includes(file.id) ? prev.filter(f => f !== file.id) : [...prev, file.id])}
-                          className={cn('w-full flex items-center space-x-4 p-4 rounded-2xl border transition-all text-left', selectedFiles.includes(file.id) ? 'bg-blue-50 border-blue-300 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300')}>
-                          <div className={cn('w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all flex-shrink-0', selectedFiles.includes(file.id) ? 'bg-blue-600 border-blue-600' : 'border-slate-300')}>
-                            {selectedFiles.includes(file.id) && <CheckCircle2 size={12} className="text-white" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-bold text-slate-900 truncate">{file.name}</p>
-                            <p className="text-xs text-slate-500 font-medium truncate">in {file.folder_slug}</p>
-                          </div>
-                          <Shield size={14} className="text-slate-300 flex-shrink-0" />
-                        </button>
-                      ))}
-                    </div>
+                    {/* Folders Section */}
+                    {filteredFolders.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest sticky top-0 bg-white z-10 py-1">Entire Folders</p>
+                        {filteredFolders.map(folder => (
+                          <button key={folder.slug} type="button" onClick={() => setSelectedFolders(prev => prev.includes(folder.slug) ? prev.filter(s => s !== folder.slug) : [...prev, folder.slug])}
+                            className={cn('w-full flex items-center space-x-4 p-4 rounded-2xl border transition-all text-left', selectedFolders.includes(folder.slug) ? 'bg-blue-50 border-blue-300 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300')}>
+                            <div className={cn('w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all flex-shrink-0', selectedFolders.includes(folder.slug) ? 'bg-blue-600 border-blue-600' : 'border-slate-300')}>
+                              {selectedFolders.includes(folder.slug) && <CheckCircle2 size={12} className="text-white" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-slate-900 truncate">{folder.name}</p>
+                            </div>
+                            <Shield size={14} className="text-slate-300 flex-shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Specific Documents Section */}
+                    {filteredFiles.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest sticky top-0 bg-white z-10 py-1">Specific Documents</p>
+                        {filteredFiles.map(file => (
+                          <button key={file.id} type="button" onClick={() => setSelectedFiles(prev => prev.includes(file.id) ? prev.filter(f => f !== file.id) : [...prev, file.id])}
+                            className={cn('w-full flex items-center space-x-4 p-4 rounded-2xl border transition-all text-left', selectedFiles.includes(file.id) ? 'bg-blue-50 border-blue-300 shadow-sm' : 'bg-slate-50 border-slate-200 hover:border-slate-300')}>
+                            <div className={cn('w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all flex-shrink-0', selectedFiles.includes(file.id) ? 'bg-blue-600 border-blue-600' : 'border-slate-300')}>
+                              {selectedFiles.includes(file.id) && <CheckCircle2 size={12} className="text-white" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-slate-900 truncate">{file.name}</p>
+                              <p className="text-xs text-slate-500 font-medium truncate">in {file.folder_slug}</p>
+                            </div>
+                            <Shield size={14} className="text-slate-300 flex-shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {(selectedCreds.length + selectedFolders.length + selectedFiles.length) > 0 && (
+                    <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">
+                      {selectedCreds.length + selectedFolders.length + selectedFiles.length} item(s) selected
+                    </p>
                   )}
-                </div>
-                {(selectedCreds.length + selectedFolders.length + selectedFiles.length) > 0 && (
-                  <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">
-                    {selectedCreds.length + selectedFolders.length + selectedFiles.length} item(s) selected
-                  </p>
-                )}
-              </motion.div>
-            )}
+                </motion.div>
+              );
+            })()}
 
             {/* Step 3: Confirm */}
             {step === 'confirm' && (

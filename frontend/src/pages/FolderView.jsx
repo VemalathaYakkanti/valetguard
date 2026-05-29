@@ -10,6 +10,7 @@ import {
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store/authStore'
 import { cn } from '../lib/utils'
+import ConfirmModal from '../components/ConfirmModal'
 
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
@@ -43,6 +44,7 @@ export default function FolderView() {
   const [newLinkUrl, setNewLinkUrl] = useState('')
   const [newLinkDescription, setNewLinkDescription] = useState('')
   const [activeLinkViewerFile, setActiveLinkViewerFile] = useState(null)
+  const [fileToDelete, setFileToDelete] = useState(null)
 
   // Load files from backend SQL database
   const fetchFolderFiles = useCallback(async () => {
@@ -341,21 +343,26 @@ export default function FolderView() {
   }
 
   // Delete file from SQL database
-  const handleDeleteFile = async (fileId, name, e) => {
+  const handleDeleteFileClick = (fileId, name, e) => {
     e.stopPropagation()
-    if (!window.confirm(`Are you sure you want to permanently delete "${name}" from SQL storage?`)) return
+    setFileToDelete({ id: fileId, name })
+  }
 
+  const handleDeleteFileConfirm = async () => {
+    if (!fileToDelete) return
     try {
-      const res = await fetch(`${apiUrl}/folders/files/${fileId}`, {
+      const res = await fetch(`${apiUrl}/folders/files/${fileToDelete.id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
       if (!res.ok) throw new Error('Failed to delete document')
       
-      setFiles(prev => prev.filter(f => f.id !== fileId))
-      toast.success(`Deleted "${name}" from database`)
+      setFiles(prev => prev.filter(f => f.id !== fileToDelete.id))
+      toast.success(`Deleted "${fileToDelete.name}" from database`)
     } catch (err) {
       toast.error(err.message)
+    } finally {
+      setFileToDelete(null)
     }
   }
 
@@ -633,7 +640,7 @@ export default function FolderView() {
                       </button>
                     )}
                     <button
-                      onClick={(e) => handleDeleteFile(file.id, file.name, e)}
+                      onClick={(e) => handleDeleteFileClick(file.id, file.name, e)}
                       className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-red-600 transition-colors"
                       title="Permanently drop record"
                     >
@@ -716,7 +723,7 @@ export default function FolderView() {
                           </button>
                         )}
                         <button
-                          onClick={(e) => handleDeleteFile(file.id, file.name, e)}
+                          onClick={(e) => handleDeleteFileClick(file.id, file.name, e)}
                           className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-red-600 transition-colors"
                           title="Delete from DB"
                         >
@@ -1214,6 +1221,14 @@ export default function FolderView() {
           </div>
         )}
       </AnimatePresence>
+
+      <ConfirmModal
+        isOpen={!!fileToDelete}
+        title="Delete Document"
+        message={`Are you sure you want to delete "${fileToDelete?.name}"? It will be moved to the Trash.`}
+        onConfirm={handleDeleteFileConfirm}
+        onCancel={() => setFileToDelete(null)}
+      />
     </div>
   )
 }

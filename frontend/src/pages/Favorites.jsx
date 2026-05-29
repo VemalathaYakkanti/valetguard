@@ -7,6 +7,7 @@ import { decryptData, encryptData } from '../lib/encryption'
 import { cn } from '../lib/utils'
 import TOTPDisplay from '../components/TOTPDisplay'
 import PasswordGenerator from '../components/PasswordGenerator'
+import ConfirmModal from '../components/ConfirmModal'
 
 export default function Favorites() {
   const { token, masterPassword, logout } = useAuthStore()
@@ -18,6 +19,7 @@ export default function Favorites() {
   const [isSaving, setIsSaving] = useState(false)
   const [showGenerator, setShowGenerator] = useState(false)
   const [formData, setFormData] = useState({ title: '', username: '', password: '', description: '', url: '', totpSecret: '' })
+  const [credToDelete, setCredToDelete] = useState(null)
 
   const fetchFavorites = useCallback(async () => {
     setLoading(true)
@@ -103,14 +105,27 @@ export default function Favorites() {
     } catch { toast.error('Failed to save') } finally { setIsSaving(false) }
   }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this credential?')) return
+  const handleDelete = (id) => {
+    setCredToDelete(id)
+  }
+
+  const handleToggleFavorite = async (id, currentStatus) => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
-      const res = await fetch(`${apiUrl}/credentials/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } })
+      const res = await fetch(`${apiUrl}/credentials/${id}/favorite`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ is_favorite: !currentStatus })
+      })
       if (!res.ok) throw new Error()
-      toast.success('Deleted'); fetchFavorites()
-    } catch { toast.error('Delete failed') }
+      toast.success('Removed from favorites')
+      fetchFavorites()
+    } catch {
+      toast.error('Failed to update favorite status')
+    }
   }
 
   return (
@@ -140,9 +155,13 @@ export default function Favorites() {
           {data.map(item => (
             <div key={item.id} className="bg-white border border-slate-200 p-6 rounded-[2rem] shadow-sm hover:shadow-xl hover:shadow-slate-200/40 transition-all group relative overflow-hidden">
               <div className="flex justify-between items-start mb-4">
-                <div className="p-3 bg-amber-50 border border-amber-100 rounded-2xl text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-all">
+                <button
+                  onClick={() => handleToggleFavorite(item.id, item.is_favorite)}
+                  className="p-3 bg-amber-50 border border-amber-100 rounded-2xl text-amber-500 hover:bg-amber-500 hover:text-white transition-all"
+                  title="Remove from favorites"
+                >
                   <Star size={24} fill="currentColor" />
-                </div>
+                </button>
                 <div className="flex space-x-1">
                   <button onClick={() => handleOpenEdit(item)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-blue-600"><MoreHorizontal size={16} /></button>
                 </div>
@@ -223,12 +242,29 @@ export default function Favorites() {
 
       <PasswordGenerator isOpen={showGenerator} onClose={() => setShowGenerator(false)} onUse={(pwd) => setFormData(f => ({ ...f, password: pwd }))} />
 
-      <div className="flex items-center justify-center pt-10">
-        <div className="flex items-center space-x-2 px-4 py-2 bg-white border border-slate-200 rounded-full text-[10px] font-bold text-slate-400 uppercase tracking-widest shadow-sm">
-          <Lock size={12} className="text-emerald-500" />
-          <span>AES-256 Encrypted</span>
-        </div>
-      </div>
+      <ConfirmModal
+        isOpen={!!credToDelete}
+        title="Delete Credential"
+        message="Are you sure you want to delete this credential? It will be moved to the Trash."
+        onConfirm={async () => {
+          if (!credToDelete) return
+          try {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+            const res = await fetch(`${apiUrl}/credentials/${credToDelete}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token}` }
+            })
+            if (!res.ok) throw new Error()
+            toast.success('Credential moved to Trash')
+            fetchFavorites()
+          } catch {
+            toast.error('Failed to delete credential')
+          } finally {
+            setCredToDelete(null)
+          }
+        }}
+        onCancel={() => setCredToDelete(null)}
+      />
     </div>
   )
 }

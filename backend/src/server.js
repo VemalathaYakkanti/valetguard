@@ -12,6 +12,7 @@ import sharingRoutes from './routes/sharing.js';
 import foldersRoutes from './routes/folders.js';
 import employeeRoutes from './routes/employees.js';
 import threadsRoutes from './routes/threads.js';
+import trashRoutes from './routes/trash.js';
 
 // Force restart and reload updated .env config
 dotenv.config();
@@ -34,6 +35,7 @@ app.use('/api/shares', sharingRoutes);
 app.use('/api/folders', foldersRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/threads', threadsRoutes);
+app.use('/api/trash', trashRoutes);
 
 
 // Dedicated guest auth endpoint (no JWT required)

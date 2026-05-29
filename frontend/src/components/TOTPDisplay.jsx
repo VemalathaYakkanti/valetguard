@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { authenticator } from 'otplib'
 import { Copy, Clock, ShieldAlert } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { decryptData } from '../lib/encryption'
+import { generateTOTP } from '../lib/totp'
 
 /**
  * TOTPDisplay
@@ -29,11 +29,12 @@ export default function TOTPDisplay({ encryptedTotpSecret, iv, salt, masterPassw
   // Generate code + countdown every second
   useEffect(() => {
     if (!secret) return
-    const tick = () => {
+    const tick = async () => {
       const epoch = Math.floor(Date.now() / 1000)
       setTimeLeft(30 - (epoch % 30))
       try {
-        setCode(authenticator.generate(secret))
+        const otp = await generateTOTP(secret)
+        setCode(otp)
       } catch {
         setCode('INVALID')
       }

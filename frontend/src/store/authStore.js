@@ -38,7 +38,7 @@ const startActivityListeners = (logoutFn) => {
 export const useAuthStore = create((set, get) => ({
   user: JSON.parse(localStorage.getItem('vg_user')) || null,
   token: localStorage.getItem('vg_token') || null,
-  masterPassword: '', // NEVER persisted to localStorage
+  masterPassword: sessionStorage.getItem('vg_mp') || '',
   lockTimeoutMs: LOCK_TIMEOUT,
   _cleanupListeners: null,
 
@@ -51,7 +51,10 @@ export const useAuthStore = create((set, get) => ({
     set({ _cleanupListeners: cleanup });
   },
 
-  setMasterPassword: (password) => set({ masterPassword: password }),
+  setMasterPassword: (password) => {
+    sessionStorage.setItem('vg_mp', password);
+    set({ masterPassword: password });
+  },
 
   setLockTimeout: (ms) => {
     // Allow overriding lock timeout (e.g., from Settings)
@@ -72,6 +75,7 @@ export const useAuthStore = create((set, get) => ({
 
     localStorage.removeItem('vg_user');
     localStorage.removeItem('vg_token');
+    sessionStorage.removeItem('vg_mp');
     set({
       user: null,
       token: null,

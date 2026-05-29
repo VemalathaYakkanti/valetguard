@@ -10,20 +10,25 @@ import {
   Settings,
   LogOut,
   Plus,
-  FileSpreadsheet,
   Share2,
   History,
   Users,
+  X,
+  FolderPlus,
+  Download,
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { cn } from '../lib/utils'
+import toast from 'react-hot-toast'
+import ConfirmModal from './ConfirmModal'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const SidebarItem = ({ to, icon: Icon, label, badge }) => (
   <NavLink
     to={to}
     className={({ isActive }) =>
       cn(
-        'flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-200 group font-semibold text-sm',
+        'flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-200 group font-semibold text-sm w-full',
         isActive
           ? 'bg-blue-600 text-white shadow-lg shadow-blue-100'
           : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
@@ -39,11 +44,14 @@ const SidebarItem = ({ to, icon: Icon, label, badge }) => (
 )
 
 export default function Sidebar() {
-  const { logout, user } = useAuthStore()
+  const { logout, user, token } = useAuthStore()
   const navigate = useNavigate()
 
   // Storage key for custom folders added by user
   const [customFolders, setCustomFolders] = useState([])
+  const [showAddFolderModal, setShowAddFolderModal] = useState(false)
+  const [newFolderName, setNewFolderName] = useState('')
+  const [folderToDelete, setFolderToDelete] = useState(null)
 
   useEffect(() => {
     const saved = localStorage.getItem('vg_custom_folders')
@@ -56,23 +64,28 @@ export default function Sidebar() {
     }
   }, [])
 
-  const handleAddFolder = () => {
-    const name = window.prompt('Enter new folder name:')
-    if (!name || !name.trim()) return
+  const handleCreateFolderSubmit = (e) => {
+    e.preventDefault()
+    const name = newFolderName.trim()
+    if (!name) return
 
-    const slug = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '-')
+    const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '-')
     if (!slug) return
 
     // Avoid duplicates
     if (customFolders.some(f => f.slug === slug) || ['work', 'personal', 'banking'].includes(slug)) {
-      window.alert('A folder with this name already exists.')
+      toast.error('A folder with this name already exists.')
       return
     }
 
-    const newFolderObj = { id: 'cf_' + Date.now(), name: name.trim(), slug }
+    const newFolderObj = { id: 'cf_' + Date.now(), name, slug }
     const updated = [...customFolders, newFolderObj]
     setCustomFolders(updated)
     localStorage.setItem('vg_custom_folders', JSON.stringify(updated))
+    
+    setNewFolderName('')
+    setShowAddFolderModal(false)
+    toast.success(`Folder "${name}" created successfully!`)
 
     // Automatically navigate to the newly created folder
     navigate(`/folder/${slug}`)
@@ -99,7 +112,6 @@ export default function Sidebar() {
         <div className="space-y-1">
           <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest px-4 mb-2">Vault</p>
           <SidebarItem to="/vault" icon={LayoutGrid} label="All Credentials" />
-          <SidebarItem to="/spreadsheets" icon={FileSpreadsheet} label="Credential Sheets" />
           <SidebarItem to="/favorites" icon={Star} label="Favorites" />
           <SidebarItem to="/trash" icon={Trash2} label="Trash" />
         </div>
@@ -117,7 +129,7 @@ export default function Sidebar() {
           <div className="flex items-center justify-between px-4 mb-2">
             <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Folders</span>
             <button
-              onClick={handleAddFolder}
+              onClick={() => setShowAddFolderModal(true)}
               className="text-slate-400 hover:text-blue-600 transition-colors p-1"
               title="Add New Folder"
             >
@@ -130,12 +142,26 @@ export default function Sidebar() {
           
           {/* Custom user folders rendered */}
           {customFolders.map(folder => (
-            <SidebarItem
-              key={folder.id}
-              to={`/folder/${folder.slug}`}
-              icon={Folder}
-              label={folder.name}
-            />
+            <div key={folder.id} className="group/folder flex items-center justify-between w-full">
+              <div className="flex-1 min-w-0">
+                <SidebarItem
+                  to={`/folder/${folder.slug}`}
+                  icon={Folder}
+                  label={folder.name}
+                />
+              </div>
+              <button
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setFolderToDelete(folder)
+                }}
+                className="opacity-0 group-hover/folder:opacity-100 p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-red-600 transition-all mr-2 flex-shrink-0"
+                title="Delete Folder"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
           ))}
         </div>
 
@@ -164,6 +190,15 @@ export default function Sidebar() {
           <span>Security Settings</span>
         </NavLink>
 
+        <a
+          href="/valetguard.apk"
+          download="valetguard.apk"
+          className="flex items-center space-x-3 px-4 py-2.5 text-slate-500 hover:bg-slate-100 rounded-xl transition-all font-semibold text-sm cursor-pointer"
+        >
+          <Download size={18} className="text-blue-600 animate-pulse" />
+          <span>Download Mobile App</span>
+        </a>
+
         <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between">
           <div className="flex items-center space-x-3 min-w-0">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-sm shadow-sm flex-shrink-0">
@@ -182,6 +217,97 @@ export default function Sidebar() {
           </button>
         </div>
       </div>
+
+      {/* Add Folder Modal */}
+      <AnimatePresence>
+        {showAddFolderModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAddFolderModal(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl border border-slate-200 overflow-hidden"
+            >
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2.5 bg-blue-600 rounded-xl text-white shadow-lg shadow-blue-100">
+                    <FolderPlus size={18} />
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 tracking-tight">Create Folder</h3>
+                </div>
+                <button
+                  onClick={() => setShowAddFolderModal(false)}
+                  className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-400 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <form onSubmit={handleCreateFolderSubmit} className="p-6 space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Folder Name</label>
+                  <input
+                    required
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-semibold"
+                    placeholder="e.g. Marketing Projects"
+                  />
+                </div>
+                <div className="flex space-x-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddFolderModal(false)}
+                    className="flex-1 px-4 py-3 rounded-xl font-black text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest text-[10px]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 bg-slate-900 hover:bg-slate-800 text-white font-black py-3 rounded-xl shadow-xl shadow-slate-200 transition-all uppercase tracking-widest text-[10px]"
+                  >
+                    Create
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Folder Confirm */}
+      <ConfirmModal
+        isOpen={!!folderToDelete}
+        title="Delete Folder"
+        message={`Are you sure you want to delete "${folderToDelete?.name}"? All files inside will also be moved to trash.`}
+        onConfirm={async () => {
+          if (!folderToDelete) return
+          try {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+            const res = await fetch(`${apiUrl}/folders/${folderToDelete.slug}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token}` }
+            })
+            if (!res.ok) throw new Error()
+            const updated = customFolders.filter(f => f.id !== folderToDelete.id)
+            setCustomFolders(updated)
+            localStorage.setItem('vg_custom_folders', JSON.stringify(updated))
+            toast.success(`Folder "${folderToDelete.name}" moved to Trash`)
+            navigate('/vault')
+          } catch (err) {
+            toast.error('Failed to delete folder')
+          } finally {
+            setFolderToDelete(null)
+          }
+        }}
+        onCancel={() => setFolderToDelete(null)}
+      />
     </aside>
   )
 }

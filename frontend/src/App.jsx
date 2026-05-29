@@ -4,7 +4,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Vault from './pages/Vault'
 import Settings from './pages/Settings'
-import Workspaces from './pages/Workspaces'
+
 import Activity from './pages/Activity'
 import TwoFactorVerify from './pages/TwoFactorVerify'
 import TwoFactorSetup from './pages/TwoFactorSetup'
@@ -44,7 +44,6 @@ function App() {
         <Route element={user ? <DashboardLayout /> : <Navigate to="/login" />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/vault" element={<Vault />} />
-          <Route path="/spreadsheets" element={<Workspaces />} />
           <Route path="/notes" element={<Documentation />} />
           <Route path="/tasks" element={<Operations />} />
           <Route path="/settings" element={<Settings />} />
