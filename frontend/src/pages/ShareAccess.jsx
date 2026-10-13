@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Share2, Plus, Trash2, Calendar, Mail, Building2, User,
   CheckCircle2, X, Loader2, Shield, Clock, Eye, Copy, RefreshCw,
-  Users, Lock, AlertTriangle, ExternalLink
+  Users, Lock, AlertTriangle, ExternalLink, Search
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '../store/authStore'
@@ -12,7 +12,7 @@ import { cn } from '../lib/utils'
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 /* ─── Create Share Modal ─── */
-function CreateShareModal({ onClose, token, credentials, folders, files }) {
+function CreateShareModal({ onClose, token, credentials = [], folders = [], files = [] }) {
   const [form, setForm] = useState({
     recipientName: '',
     employerName: '',
@@ -245,14 +245,18 @@ function CreateShareModal({ onClose, token, credentials, folders, files }) {
 
             {/* Step 2: Select Items */}
             {step === 'credentials' && (() => {
-              const filteredCreds = credentials.filter(c =>
+              const safeCreds = credentials || [];
+              const safeFolders = folders || [];
+              const safeFiles = files || [];
+
+              const filteredCreds = safeCreds.filter(c =>
                 c.title?.toLowerCase().includes(itemSearchQuery.toLowerCase()) ||
                 c.username?.toLowerCase().includes(itemSearchQuery.toLowerCase())
               );
-              const filteredFolders = folders.filter(f =>
+              const filteredFolders = safeFolders.filter(f =>
                 f.name?.toLowerCase().includes(itemSearchQuery.toLowerCase())
               );
-              const filteredFiles = files.filter(f =>
+              const filteredFiles = safeFiles.filter(f =>
                 f.name?.toLowerCase().includes(itemSearchQuery.toLowerCase()) ||
                 f.folder_slug?.toLowerCase().includes(itemSearchQuery.toLowerCase())
               );
@@ -329,6 +333,12 @@ function CreateShareModal({ onClose, token, credentials, folders, files }) {
                             <Shield size={14} className="text-slate-300 flex-shrink-0" />
                           </button>
                         ))}
+                      </div>
+                    )}
+
+                    {filteredCreds.length === 0 && filteredFolders.length === 0 && filteredFiles.length === 0 && (
+                      <div className="py-8 text-center text-slate-400">
+                        <p className="text-sm font-semibold">No credentials, folders, or files found.</p>
                       </div>
                     )}
                   </div>

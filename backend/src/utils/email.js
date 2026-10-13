@@ -3,21 +3,25 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Create robust SMTP transporter configuration
+const smtpPort = Number(process.env.SMTP_PORT) || 465;
+const smtpUser = process.env.EMAIL_USER || process.env.SMTP_USER;
+const smtpPass = process.env.EMAIL_PASS || process.env.SMTP_PASS;
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: Number(process.env.SMTP_PORT) || 465,
-  secure: true, // true for port 465, false for other ports
+  port: smtpPort,
+  secure: process.env.SMTP_SECURE !== undefined ? process.env.SMTP_SECURE === 'true' : smtpPort === 465, // true for port 465, false for 587
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // App Password or standard password
+    user: smtpUser,
+    pass: smtpPass, // App Password or standard password
   },
   tls: {
     // Bypasses local antivirus/firewall proxy self-signed cert checks during development
     rejectUnauthorized: false,
   },
-  connectionTimeout: 5000,
-  greetingTimeout: 5000,
-  socketTimeout: 5000,
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 10000,
 });
 
 /**
@@ -277,14 +281,14 @@ export const sendGuestInviteEmail = async ({ recipientEmail, recipientName, admi
   `;
 
   try {
-    if (!process.env.EMAIL_USER) {
-      console.log('⚠️ EMAIL_USER not defined in .env. Please configure SMTP credentials to enable automatic emailing.');
-      return { success: false, reason: 'EMAIL_USER unconfigured' };
+    if (!smtpUser || !smtpPass) {
+      console.log('⚠️ EMAIL_USER/SMTP_USER or EMAIL_PASS/SMTP_PASS not defined. Please configure SMTP credentials to enable automatic emailing.');
+      return { success: false, reason: 'SMTP credentials unconfigured' };
     }
 
     // Send mail specifying the sender string beautifully to include the admin's email address sharing the access
     const info = await transporter.sendMail({
-      from: `"${sharingAdminEmail} via VaultGuard" <${process.env.EMAIL_USER}>`,
+      from: `"${sharingAdminEmail} via VaultGuard" <${smtpUser}>`,
       replyTo: sharingAdminEmail,
       to: recipientEmail,
       subject: `[VaultGuard Secure Share] Access granted by ${sharingAdminEmail}`,
